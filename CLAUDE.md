@@ -88,8 +88,10 @@ branch + PR (`gh pr create`), conventional commits.
   behaviour that HANDOFF already specifies.
 - **Seed data is placeholder** except the 12 section names. It all lives in
   `supabase/seed.sql`, clearly marked.
-- **Scheduled sends** (announcement `scheduled_for`, pre-event reminders)
-  have schema + logic but no cron wiring yet — see HANDOFF → Known gaps.
+- **Scheduled sends are wired**: `/api/cron/tick` (secret-protected,
+  idempotent) publishes due announcements and sends day-of reminders;
+  `vercel.json` runs it every 5 minutes. It needs `CRON_SECRET` set, and
+  refuses to run without it — docs/OPERATIONS.md → Scheduled work.
 
 ## Gotchas
 
