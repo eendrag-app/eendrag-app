@@ -12,6 +12,10 @@ import { navModules } from "@/modules/registry";
 // viewport (so its position in the DOM does not matter, and it can live inside
 // the header), on desktop it becomes a normal row inside the header. One
 // element also means one `aria-label="Main"` landmark.
+//
+// Because of the `fixed`, no ancestor may have a transform, filter, or
+// backdrop-filter — any of those would become the containing block and drag
+// the tab bar up into the header. See the comment in (app)/layout.tsx.
 export function ModuleNav() {
   const pathname = usePathname();
   const tabs = navModules();

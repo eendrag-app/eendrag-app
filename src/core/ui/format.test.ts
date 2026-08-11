@@ -6,7 +6,9 @@ import {
   formatDate,
   formatDateTime,
   formatTime,
+  fromLocalInput,
   relativeTime,
+  toLocalInput,
   startOfDay,
   startOfMonth,
   weekdayIndex,
@@ -59,6 +61,23 @@ describe("day arithmetic", () => {
     expect(weekdayIndex(startOfDay("2026-08-13"))).toBe(3); // Thursday
     expect(weekdayIndex(startOfDay("2026-08-17"))).toBe(0); // Monday
     expect(weekdayIndex(startOfDay("2026-08-16"))).toBe(6); // Sunday
+  });
+});
+
+describe("datetime-local inputs", () => {
+  it("reads a wall-clock value as res time", () => {
+    expect(fromLocalInput("2026-08-20T19:00").toISOString()).toBe("2026-08-20T17:00:00.000Z");
+  });
+
+  it("tolerates a value that includes seconds", () => {
+    expect(fromLocalInput("2026-08-20T19:00:00").toISOString()).toBe(
+      "2026-08-20T17:00:00.000Z",
+    );
+  });
+
+  it("round-trips", () => {
+    const value = "2026-12-31T23:30";
+    expect(toLocalInput(fromLocalInput(value))).toBe(value);
   });
 });
 

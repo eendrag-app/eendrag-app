@@ -38,6 +38,31 @@ stubbed" further down has NOT changed.
   by `ics-feed.ts`. Verified importing into a calendar client by URL.
 - No schema changes: every table and policy this needs already existed.
 
+### Home — feed and announcements admin (PR: home announcements)
+
+- **Real** — `/`: the announcement feed. Urgent posts carry the destructive
+  accent and stay pinned above everything for 24 hours after publishing, then
+  flow normally. Long bodies clamp with "Read more". Section badge on
+  targeted posts, image attachments inline and PDFs as a labelled link (both
+  through short-lived signed URLs). Search over the whole archive
+  (title + body), paging back through older posts.
+- **Real** — read receipts: a post counts as opened once it has been half on
+  screen for a second or the reader expands it. HK sees the count only,
+  through `announcement_read_counts()`.
+- **Real** — `/admin/announcements` (+ `/new`, `/[id]`): compose, target the
+  res or one section, urgent toggle, image/PDF upload straight to the private
+  bucket from the browser, and save as draft / schedule / publish now.
+  Publishing notifies through `notify()` — urgent posts under the `urgent`
+  category so they bypass quiet hours.
+- **Still missing** — scheduled posts do not go out by themselves yet; the
+  compose form says so when no cron secret is configured. The cron tick is
+  its own PR (HANDOFF §6).
+- Two phase-one defects fixed on the way: `--font-sans` was mapped to itself
+  in globals.css, so every page rendered in the browser's default serif
+  instead of Geist; and the header's `backdrop-blur` made it the containing
+  block for the `fixed` tab bar, which pinned the bar inside the header on
+  phones.
+
 ## 2026-08-11 — Phase one
 
 ### Exists and works (verified)
