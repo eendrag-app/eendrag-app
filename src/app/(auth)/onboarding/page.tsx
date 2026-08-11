@@ -20,7 +20,9 @@ export default async function OnboardingPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Welcome to Eendrag</CardTitle>
+        <CardTitle>
+          <h1>Welcome to Eendrag</h1>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <OnboardingForm sections={sections ?? []} sports={sports ?? []} />

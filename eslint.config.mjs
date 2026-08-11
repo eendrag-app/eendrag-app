@@ -87,6 +87,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local Supabase stack scratch space (gitignored, not our code).
+    "supabase/.temp/**",
   ]),
 ]);
 
