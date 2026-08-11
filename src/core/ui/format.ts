@@ -7,9 +7,11 @@
 //    browser timezone. The residence is in Stellenbosch; a student on exchange
 //    should still see res times. It also makes server and client render the
 //    same string, so there are no hydration mismatches.
-// 2. Format on the SERVER and pass strings to client components. Client
-//    components never call `new Date()` for display — that is what makes
-//    server-rendered HTML and the hydrated client agree.
+// 2. Because the timezone is fixed, formatting a given instant produces the
+//    same string on the server and in the browser — client components may
+//    call these freely. What they must NOT do is anything that depends on
+//    "now": `relativeTime` is computed on the server and passed down as a
+//    string, or the server HTML and the hydrated client disagree.
 //
 // South Africa has no daylight saving (SAST = UTC+2 all year), so day
 // arithmetic is plain millisecond maths instead of a timezone library. If the
