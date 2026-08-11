@@ -17,7 +17,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="min-h-dvh">
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
+      {/* Solid background, NO backdrop-blur here: a backdrop-filter makes an
+          element the containing block for `position: fixed` descendants, and
+          the tab bar inside is fixed to the bottom of the screen on phones.
+          Blurring here pins it to the bottom of the header instead. */}
+      <header className="bg-background sticky top-0 z-40 border-b">
         <div className="mx-auto flex h-14 max-w-3xl items-center px-4">
           <Link href="/" className="font-heading text-base font-semibold tracking-tight">
             Eendrag

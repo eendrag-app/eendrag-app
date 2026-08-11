@@ -91,6 +91,21 @@ export function weekdayIndex(at: Date): number {
   return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(short.slice(0, 3));
 }
 
+// --- <input type="datetime-local"> ------------------------------------------
+// Those inputs speak wall-clock time with no timezone at all, so both
+// directions have to name one. Everyone using this app is on res time.
+
+/** "2026-08-20T19:00" (what the input gives you) → the instant it means. */
+export function fromLocalInput(value: string): Date {
+  const withSeconds = value.length === 16 ? `${value}:00` : value;
+  return new Date(`${withSeconds}+02:00`);
+}
+
+/** An instant → "2026-08-20T19:00", the value the input wants. */
+export function toLocalInput(at: Date | string): string {
+  return `${dayKey(at)}T${formatTime(at)}`;
+}
+
 /**
  * "just now" / "12 min ago" / "3 hours ago" / "yesterday" / "Thu 13 Aug".
  * Pass `now` explicitly in tests; callers on the server pass nothing.

@@ -22,8 +22,10 @@ role.
 6. **Publish** to send now, **Schedule** to pick a date and time, or **Save
    draft** to finish later.
 
-You can see how many people opened each announcement (a number — the app
-deliberately never shows *who* opened it).
+The list shows how many people have **opened** each announcement — a post
+counts as opened once it has been on someone's screen for a second, or as soon
+as they tap "Read more". It is a number and only a number: the app deliberately
+cannot tell you *who* opened it, and no amount of clicking will reveal that.
 
 ## Add something to the calendar
 
