@@ -13,35 +13,47 @@ document's credentials. **Nothing secret is in the repo.**
 **Live at https://eendrag-app.vercel.app** (Vercel project `eendrag-app`,
 account `eendragapp-9642`, first deployed 2026-08-11).
 
-### How a deploy happens today
+### How a deploy happens
 
-The account is on Vercel's **Hobby** plan, which cannot connect a *private
-repository owned by an organisation* — and this repo is exactly that. So there
-is **no automatic deploy on merge yet**. Deploys are run by hand from a clone:
+**Merge to `main` → production deploy, automatically.** Vercel's GitHub
+integration is connected, and it works on the free Hobby plan because **the
+repository is public**. That was a deliberate choice (2026-08-11): Hobby
+cannot connect a private repository owned by an organisation, and going public
+was cheaper and simpler than the alternatives. Nothing secret is in the repo —
+`.env*` is gitignored and the history was scanned before publishing — and no
+res *content* is either: announcements, the calendar and section membership
+all live in Supabase.
+
+**If the repo ever goes private again**, that integration stops working. Then
+either upgrade to Vercel Pro, or deploy from a GitHub Actions workflow with a
+Vercel token in repository secrets (`vercel deploy --prod --token=…`), and
+replace the cron workflow with an external scheduler (see Scheduled work).
+
+To deploy by hand — from a clone, when you need to ship without a merge:
 
 ```bash
 npx vercel login          # once per machine
 npx vercel link           # once per machine — pick the eendrag-app project
-npx vercel --prod         # deploy what is in your working directory
+npx vercel --prod
 ```
+
+> **That uploads your working directory, not `main`.** Check out `main` and
+> pull first, or you will publish whatever you were mid-way through.
 
 `npx vercel ls` lists recent deployments; `npx vercel rollback` and the
 dashboard's "Promote to Production" both undo one.
 
-> **Deploying uploads your working directory, not `main`.** Check out `main`
-> and pull before running it, or you will publish whatever you were mid-way
-> through.
+### Preview deploys are deliberately not wired to the database
 
-### Making it automatic (recommended, pick one)
+Vercel builds a preview for every PR, but **no environment variables are set
+for the Preview environment**, so a preview cannot reach Supabase. That is on
+purpose: the repository is public, so anyone can open a pull request, and a
+build that could read `SUPABASE_SERVICE_ROLE_KEY` is a build that could print
+it. Previews are useful for looking at markup; test against a database
+locally (`npm run dev`) instead.
 
-1. **Upgrade to Vercel Pro.** Connects the private org repo, gives merge →
-   deploy, PR previews, and 5-minute crons (below). Costs money.
-2. **Make the GitHub repo public.** Hobby connects public repos fine. Nothing
-   secret is in the repo, but check with the HK first — it publishes the res's
-   code, not its data.
-3. **Deploy from GitHub Actions** with a Vercel token in repository secrets
-   (`vercel deploy --prod --token=$VERCEL_TOKEN`). Works on Hobby and keeps
-   the repo private; costs a bit of workflow YAML.
+If you ever do want working previews, point them at a *separate* Supabase
+project — never the pilot one.
 
 ### Environment variables
 
@@ -197,20 +209,33 @@ not something to leave lying around. The announcement compose screen reads the
 same variable and warns when scheduling is not wired up, so a missing secret
 shows up as a visible warning rather than posts that silently never go out.
 
-**On Vercel** (configured): `vercel.json` runs it, and Vercel sends
-`Authorization: Bearer $CRON_SECRET` automatically.
+**Two things call it, on purpose:**
 
-> **The schedule is `0 6 * * *` — once a day at 06:00 — because the Hobby plan
-> refuses anything more frequent** (the deploy fails outright with "Hobby
-> accounts are limited to daily cron jobs"). That means **a post scheduled for
-> 14:00 goes out at 06:00 the next morning**, and day-of reminders arrive in
-> that same batch. Two ways to get the intended five-minute behaviour back:
->
-> - upgrade to Pro and change the schedule to `*/5 * * * *`; or
-> - leave Vercel's daily cron as a backstop and point a free external
->   scheduler (cron-job.org, an Uptime-Robot monitor, a machine's crontab) at
->   the URL below every five minutes. The tick is idempotent, so both firing
->   is harmless.
+1. **GitHub Actions, every five minutes** —
+   `.github/workflows/cron-tick.yml`, using the `CRON_SECRET` repository
+   secret. This is what actually gives scheduled posts their intended
+   behaviour. It is free because Actions minutes are unlimited on public
+   repositories; if this repo ever goes private again, delete the workflow and
+   use an external scheduler (below) instead.
+2. **Vercel, once a day at 06:00** — `vercel.json`, sending
+   `Authorization: Bearer $CRON_SECRET` automatically. A backstop, kept
+   because the tick is idempotent so two callers cost nothing.
+
+> Vercel's schedule is daily rather than `*/5` because **the Hobby plan
+> refuses anything more frequent** — the deploy fails outright with "Hobby
+> accounts are limited to daily cron jobs". On its own that would mean a post
+> scheduled for 14:00 going out at 06:00 the next morning, which is why the
+> Actions workflow exists. On Pro you could drop the workflow and set
+> `*/5 * * * *` here instead.
+
+**If you ever need a third option** (repo went private, Actions disabled, app
+moved): any scheduler that can make an HTTPS request will do — cron-job.org,
+an UptimeRobot monitor, or a machine's crontab. See the curl below.
+
+**Two gotchas with the Actions workflow:** GitHub runs scheduled workflows
+late by a few minutes fairly often (fine for announcements), and **disables
+them after 60 days of repository inactivity** — over a quiet December that can
+happen. It emails the admins; re-enable from the Actions tab.
 
 **Anywhere else** (university server, a laptop, cron-job.org):
 
