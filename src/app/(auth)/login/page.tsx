@@ -12,7 +12,9 @@ export default async function LoginPage({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign in to Eendrag</CardTitle>
+        <CardTitle>
+          <h1>Sign in to Eendrag</h1>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <LoginForm next={next} />

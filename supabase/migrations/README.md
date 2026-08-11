@@ -21,6 +21,12 @@ together and new modules never collide:
 | 0600–0699 | profile |
 | 0700+ | next module — claim the next free block in this table |
 
+Because blocks are per-module, a *fix* to an early block (say a core fix in
+0101) sorts before migrations that already ran (0200+). The Supabase CLI
+flags that as out-of-order, so `npm run db:push` passes `--include-all`:
+every not-yet-applied file runs, whatever its position. On a fresh database
+files still apply in plain filename order.
+
 ## Rules
 
 - **Never edit an applied migration.** Add a new file. The CLI tracks what has

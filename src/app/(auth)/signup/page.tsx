@@ -8,7 +8,9 @@ export default function SignupPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create your account</CardTitle>
+        <CardTitle>
+          <h1>Create your account</h1>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <SignupForm />

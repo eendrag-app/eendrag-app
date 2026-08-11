@@ -26,19 +26,24 @@ trusts.
 - Docs: CLAUDE.md, README, ARCHITECTURE, ADDING-A-MODULE, ADMIN-GUIDE,
   OPERATIONS, DECISIONS, HANDOFF, this file.
 
-### Written but not yet executed against a live database
+### Verified against live infrastructure (2026-08-11, later the same day)
 
-Blocked on two one-time interactive steps on the dev machine (Supabase CLI
-browser login; Docker Desktop's first-run license dialog + WSL setup):
+- Hosted Supabase project (`wznutdfrtfsgelugtznz`) linked; all migrations
+  (0100–0500 + 0101 fix) pushed, seed applied (`db push --include-seed`).
+- Local stack (`supabase start` + fresh reset) applies migrations + seed
+  cleanly from zero.
+- `src/core/db/database.types.ts` regenerated from the real schema.
+- Dev admin created on the hosted project (`npm run create-admin`).
+- `npm run test:rls`: 24/24 passing against the hosted project.
+- Playwright smoke: 6/6 passing (mobile + desktop) against the dev server.
+- Docker: `docker compose --env-file .env.local build` succeeds; the
+  container serves `/intersection` 200 signed-out and 307-redirects `/` to
+  login.
 
-- Applying migrations + seed to the hosted Supabase project
-  (`supabase link` + `npm run db:push`), and to a local `supabase start`.
-- `npm run test:rls` (needs any live database).
-- `docker build` verification of the Dockerfile.
-- Regenerating `src/core/db/database.types.ts` — currently hand-written to
-  match the migrations; replace with `npm run db:types` output at first
-  opportunity.
-- Playwright smoke run (needs `.env.local`).
+Verification found and fixed two real issues, recorded in DECISIONS.md:
+the privilege-guard triggers blocked service-role bootstrap (migration
+0101), and block-numbered fix migrations need `db push --include-all`
+(now baked into `npm run db:push`).
 
 ### Deliberately stubbed (by design, not debt)
 

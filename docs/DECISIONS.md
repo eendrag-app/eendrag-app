@@ -128,6 +128,30 @@ four feature modules. Without a login flow nothing else is demonstrable: RLS
 tests need users, middleware needs somewhere to redirect, and the dev loop
 needs a way in. Phase two restyles them; the logic stands.
 
+## 2026-08-11 — Privilege guards allow no-user contexts (migration 0101)
+
+**Decision:** The triggers guarding `profiles.role`/`is_active` and
+`sports.rep_id` only raise when a *signed-in* non-admin makes the change
+(`auth.uid() is not null and not app_is_admin()`).
+
+**Why:** Triggers fire even for the service role (RLS bypass doesn't skip
+triggers), so the original stricter guard made bootstrapping the first admin
+impossible — `scripts/create-admin.mjs` failed. Service-role and direct-SQL
+contexts have no `auth.uid()`; RLS already prevents ordinary users from
+updating rows they don't own, so the guard's only real job — stopping
+self-promotion — is intact. Caught by running the script against the hosted
+project.
+
+## 2026-08-11 — `db:push` passes `--include-all`
+
+**Decision:** `npm run db:push` runs `supabase db push --include-all`.
+
+**Why:** Per-module hundred-blocks mean a later fix to an early block (e.g.
+core fix `0101` after `0500` was applied) sorts before already-applied
+migrations, which the CLI treats as out-of-order and refuses by default.
+`--include-all` applies every pending file; fresh databases still run in
+plain filename order. Trade-off documented in supabase/migrations/README.md.
+
 ## 2026-08-11 — Announcement read counts go through a definer function
 
 **Decision:** Admins get open counts from the
