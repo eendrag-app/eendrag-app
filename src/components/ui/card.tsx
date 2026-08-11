@@ -33,9 +33,13 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+// Renders an <h3> rather than shadcn's default <div>: cards are the main
+// structure of nearly every page here, and a screen reader that cannot see
+// them has no outline to navigate by. Styling is unchanged — the classes set
+// size and weight explicitly.
+function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
   return (
-    <div
+    <h3
       data-slot="card-title"
       className={cn(
         "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",

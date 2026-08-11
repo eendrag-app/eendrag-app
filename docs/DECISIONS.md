@@ -152,6 +152,46 @@ migrations, which the CLI treats as out-of-order and refuses by default.
 `--include-all` applies every pending file; fresh databases still run in
 plain filename order. Trade-off documented in supabase/migrations/README.md.
 
+## 2026-08-11 — Grants are written down, not inherited (0103)
+
+**Decision:** `0103_core_grants.sql` grants `select, insert, update, delete`
+on every table in `public` to `anon`, `authenticated` and `service_role`, and
+sets matching default privileges for tables created later.
+
+**Alternatives:** keep relying on the platform's implicit defaults.
+
+**Why:** On a *fresh* database every query failed with "permission denied for
+table sections" — not RLS (which returns no rows) but a missing GRANT. The
+default privileges for objects created by `postgres` in `public` hand out only
+`Dxtm`, so the API roles could not read anything. The hosted project works
+only because its tables were created under more generous defaults. That made
+`npx supabase db reset` produce an app that could not read a row — the first
+thing a new maintainer does — and it would have broken the university-server
+path completely, where no Supabase defaults exist at all. Granting table
+privileges weakens nothing: RLS is enabled on every table with explicit
+policies, and a table whose policies do not match denies the row whatever the
+grants say. Found by resetting a local stack from zero in phase two.
+
+## 2026-08-11 — Two forward migrations instead of editing 0101 (0102 + 0402)
+
+**Decision:** `0102` conditionally drops `app_guard_sport_rep()` when 0400 has
+not run yet, and `0402` re-applies the fixed definition afterwards. `0101` is
+left exactly as it was applied.
+
+**Alternatives:** edit 0101 (forbidden — it has been applied); leave a
+database that only works if the migrations happen to run in the order the
+hosted project happened to use.
+
+**Why:** 0101 was written after 0400 had already been applied to the hosted
+project, so there it ran last and its `create or replace` won. On a fresh
+database filename order puts 0101 *before* 0400, so 0400's plain
+`create function` for the same name aborted the whole run with SQLSTATE 42723
+— and if it had not, 0400's stricter guard would have silently undone the fix,
+bringing back the bug that stopped `npm run create-admin` bootstrapping the
+first admin. The two migrations make both orderings converge on the same
+state, and both are no-ops on the hosted project. Verified by running
+`supabase db reset` from zero, then `npm run create-admin` against it.
+
 ## 2026-08-11 — A rep may write exactly one shape of announcement (0401)
 
 **Decision:** Migration `0401_sport_result_announcements.sql` adds one insert
