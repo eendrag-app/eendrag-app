@@ -244,6 +244,89 @@ describe("sports and reps", () => {
       .eq("id", hockey);
     expect(error).not.toBeNull();
   });
+
+  it("the hockey rep can post a hockey fixture", async () => {
+    const { data, error } = await rep.client
+      .from("sport_fixtures")
+      .insert({ sport_id: hockey, opponent: "RLS test", starts_at: new Date().toISOString() })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    await admin.from("sport_fixtures").delete().eq("id", data!.id);
+  });
+
+  it("the hockey rep cannot post a squash fixture", async () => {
+    const { error } = await rep.client
+      .from("sport_fixtures")
+      .insert({ sport_id: squash, opponent: "Not my sport", starts_at: new Date().toISOString() });
+    expect(error).not.toBeNull();
+  });
+
+  it("a student cannot post a fixture for any sport", async () => {
+    const { error } = await student.client
+      .from("sport_fixtures")
+      .insert({ sport_id: hockey, opponent: "Nope", starts_at: new Date().toISOString() });
+    expect(error).not.toBeNull();
+  });
+});
+
+// Posting a result auto-writes a one-line announcement as the rep. Migration
+// 0401 opens exactly that hole in the announcements policies and no other.
+describe("sport reps and the auto-announcement (migration 0401)", () => {
+  const systemPost = (authorId: string) => ({
+    title: "RLS test: Hockey beat somebody",
+    author_id: authorId,
+    is_system: true,
+    status: "published",
+    published_at: new Date().toISOString(),
+  });
+
+  it("a rep may post a system announcement authored by themselves", async () => {
+    const { data, error } = await rep.client
+      .from("announcements")
+      .insert(systemPost(rep.id))
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    await admin.from("announcements").delete().eq("id", data!.id);
+  });
+
+  it("a rep may not post an ordinary announcement", async () => {
+    const { error } = await rep.client.from("announcements").insert({
+      ...systemPost(rep.id),
+      is_system: false,
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("a rep may not post an urgent announcement", async () => {
+    const { error } = await rep.client.from("announcements").insert({
+      ...systemPost(rep.id),
+      is_urgent: true,
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("a rep may not post one in someone else's name", async () => {
+    const { error } = await rep.client.from("announcements").insert(systemPost(student.id));
+    expect(error).not.toBeNull();
+  });
+
+  it("a rep may not target a section with one", async () => {
+    const ingang = await sectionId("Ingang");
+    const { error } = await rep.client.from("announcements").insert({
+      ...systemPost(rep.id),
+      target_section_id: ingang,
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("a student who runs no sport may not post one at all", async () => {
+    const { error } = await student.client
+      .from("announcements")
+      .insert(systemPost(student.id));
+    expect(error).not.toBeNull();
+  });
 });
 
 describe("profiles and roles", () => {

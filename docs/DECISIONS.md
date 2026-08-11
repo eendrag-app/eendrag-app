@@ -152,6 +152,39 @@ migrations, which the CLI treats as out-of-order and refuses by default.
 `--include-all` applies every pending file; fresh databases still run in
 plain filename order. Trade-off documented in supabase/migrations/README.md.
 
+## 2026-08-11 — A rep may write exactly one shape of announcement (0401)
+
+**Decision:** Migration `0401_sport_result_announcements.sql` adds one insert
+policy on `announcements`: a sport rep may create an announcement only if it is
+`is_system`, authored by themselves, `published`, res-wide, and not urgent.
+
+**Alternatives:** write the auto-announcement with the service-role client;
+make reps admins; drop the auto-announcement.
+
+**Why:** HANDOFF specifies that posting a result also posts a one-line
+announcement authored by the rep — and 0300 let only admins insert. Reaching
+for the service role would put a hole in "RLS is the authorisation layer" for a
+routine user action. The policy is written as a list of things that must all be
+true, so the only announcement a rep can produce is the one the app produces
+for them; they still cannot edit or delete any announcement, including their
+own. Six RLS tests pin each half of that.
+
+## 2026-08-11 — The events source index had to become non-partial (0201)
+
+**Decision:** `0201_core_events_source_unique.sql` drops the partial unique
+index on `events (source_module, source_ref)` and recreates it without the
+`where source_module is not null` clause.
+
+**Why:** Postgres will not infer a *partial* index for `insert … on conflict
+(source_module, source_ref)` unless the statement repeats the index's WHERE
+clause, which PostgREST cannot send. So `upsertModuleEvent()` — the whole
+mechanism by which sport fixtures and intersection draws reach the calendar —
+failed with 42P10 the first time it ran for real. A plain unique index behaves
+identically for this schema: UNIQUE treats NULLs as distinct, so admin-created
+events (both columns null) are unconstrained, while module mirrors stay one row
+per source. Phase one wrote the index; nothing had exercised it until phase two
+posted a fixture.
+
 ## 2026-08-11 — The ICS feed is the third sanctioned service-role use
 
 **Decision:** `src/core/calendar/ics-feed.ts` reads profiles and events with
