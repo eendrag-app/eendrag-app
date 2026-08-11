@@ -1,13 +1,44 @@
+import Link from "next/link";
+import { loadInbox } from "@/core/ui/inbox";
+import { NotificationBell } from "@/core/ui/notification-bell";
+import { ThemeToggle } from "@/core/ui/theme";
+import { getProfile } from "@/core/permissions";
 import { ModuleNav } from "./module-nav";
 
-// The app shell: registry-derived nav + a phone-width content column.
-// Auth gating per module (AppModule.requiresAuth) is wired up together with
-// src/core/auth — see docs/BUILD-LOG.md for current status.
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+// The app shell: a sticky header (wordmark, registry-derived nav on desktop,
+// bell, appearance) over a phone-width content column. On phones the nav is
+// pinned to the bottom of the screen instead — see module-nav.tsx.
+//
+// The shell is shared with public pages (/intersection has requiresAuth:
+// false), so everything user-specific degrades to nothing when signed out.
+export default async function AppLayout({ children }: LayoutProps<"/">) {
+  const profile = await getProfile();
+  const inbox = profile ? await loadInbox() : null;
+
   return (
     <div className="min-h-dvh">
-      <ModuleNav />
-      <main className="mx-auto max-w-3xl px-4 pt-4 pb-20 sm:pb-8">{children}</main>
+      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-3xl items-center px-4">
+          <Link href="/" className="font-heading text-base font-semibold tracking-tight">
+            Eendrag
+          </Link>
+          <ModuleNav />
+          <div className="ml-auto flex items-center gap-0.5">
+            {inbox ? (
+              <NotificationBell initial={inbox} />
+            ) : (
+              <Link
+                href="/login"
+                className="hover:bg-muted rounded-lg px-3 py-2 text-sm font-medium"
+              >
+                Sign in
+              </Link>
+            )}
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto max-w-3xl px-4 pt-4 pb-24 sm:pb-10">{children}</main>
     </div>
   );
 }

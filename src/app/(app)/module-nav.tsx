@@ -7,7 +7,11 @@ import { navModules } from "@/modules/registry";
 
 // The tab bar. Derived entirely from the module registry — adding a module
 // with navPlacement: "tab" puts it here; nothing in this file changes.
-// Bottom bar on phones (nearly all real usage), top bar on desktop.
+//
+// ONE element, two layouts: on phones it is `fixed` to the bottom of the
+// viewport (so its position in the DOM does not matter, and it can live inside
+// the header), on desktop it becomes a normal row inside the header. One
+// element also means one `aria-label="Main"` landmark.
 export function ModuleNav() {
   const pathname = usePathname();
   const tabs = navModules();
@@ -21,9 +25,9 @@ export function ModuleNav() {
   return (
     <nav
       aria-label="Main"
-      className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur sm:sticky sm:top-0 sm:bottom-auto sm:border-t-0 sm:border-b"
+      className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur sm:static sm:z-auto sm:ml-2 sm:border-t-0 sm:bg-transparent sm:backdrop-blur-none sm:supports-[backdrop-filter]:bg-transparent"
     >
-      <div className="mx-auto flex max-w-3xl items-stretch justify-around sm:justify-start sm:gap-2 sm:px-4">
+      <div className="mx-auto flex max-w-3xl items-stretch justify-around pb-[env(safe-area-inset-bottom)] sm:justify-start sm:gap-1 sm:pb-0">
         {tabs.map((m) => {
           const Icon = m.icon;
           const active = isActive(m.basePath);
@@ -33,9 +37,10 @@ export function ModuleNav() {
               href={m.basePath}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 px-3 py-2 text-xs sm:flex-none sm:flex-row sm:gap-2 sm:py-3 sm:text-sm",
+                // min-h-14 keeps the touch target comfortably over 44px.
+                "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-3 text-xs sm:min-h-0 sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-sm",
                 active
-                  ? "text-foreground font-medium"
+                  ? "text-foreground font-medium sm:bg-muted"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
