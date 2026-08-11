@@ -18,7 +18,6 @@ export interface AnnouncementCardProps {
   isUrgent: boolean;
   pinned: boolean;
   sectionName?: string | null;
-  sectionColor?: string | null;
   imageUrl?: string | null;
   pdfUrl?: string | null;
   read: boolean;
@@ -90,7 +89,7 @@ export function AnnouncementCard(props: AnnouncementCardProps) {
           )}
           {props.pinned && !props.isUrgent && <Badge variant="secondary">Pinned</Badge>}
           {props.sectionName && (
-            <SectionBadge name={props.sectionName} color={props.sectionColor} />
+            <SectionBadge name={props.sectionName} />
           )}
           {!read && (
             <span className="text-muted-foreground ml-auto text-xs font-medium">New</span>

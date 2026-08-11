@@ -45,7 +45,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     // refuses it), and it has to stay ONE literal — supabase-js infers the row
     // type from it, and a concatenated string types as `unknown`.
     .select(
-      "id, title, body, is_urgent, is_system, published_at, image_path, pdf_path, author:profiles!announcements_author_id_fkey(full_name), section:sections!announcements_target_section_id_fkey(name, color)",
+      "id, title, body, is_urgent, is_system, published_at, image_path, pdf_path, author:profiles!announcements_author_id_fkey(full_name), section:sections!announcements_target_section_id_fkey(name)",
     )
     .eq("status", "published")
     .order("published_at", { ascending: false })
@@ -94,7 +94,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const windowEnd = addMonths(now, WINDOW_MONTHS_AHEAD);
   const [eventRows, sections] = await Promise.all([
     listEventsBetween(windowStart, windowEnd),
-    db.from("sections").select("id, name, color"),
+    db.from("sections").select("id, name"),
   ]);
   const sectionById = new Map((sections.data ?? []).map((s) => [s.id, s]));
   const calendarEvents: CalendarEvent[] = eventRows.map((e) => {
@@ -107,7 +107,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       dayKey: dayKey(e.starts_at),
       timeLabel: formatTime(e.starts_at),
       sectionName: section?.name ?? null,
-      sectionColor: section?.color ?? null,
       sourceModule: e.source_module,
     };
   });
@@ -128,7 +127,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       isUrgent={a.is_urgent}
       pinned={isPinned}
       sectionName={a.section?.name}
-      sectionColor={a.section?.color}
       imageUrl={a.image_path ? urlByPath.get(a.image_path) : null}
       pdfUrl={a.pdf_path ? urlByPath.get(a.pdf_path) : null}
       read={readIds.has(a.id)}

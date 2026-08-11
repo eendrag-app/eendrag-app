@@ -21,7 +21,7 @@ export default async function AdminCalendarPage() {
   const from = new Date(new Date().getTime() - PAST_DAYS * 86_400_000).toISOString();
   const { data } = await db
     .from("events")
-    .select("id, title, category, location, starts_at, source_module, section:sections(name, color)")
+    .select("id, title, category, location, starts_at, source_module, section:sections(name)")
     .gte("starts_at", from)
     .order("starts_at")
     .limit(200);
@@ -33,7 +33,6 @@ export default async function AdminCalendarPage() {
     whenLabel: formatDateTime(e.starts_at),
     location: e.location,
     sectionName: e.section?.name ?? null,
-    sectionColor: e.section?.color ?? null,
     sourceModule: e.source_module,
   }));
 

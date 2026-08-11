@@ -165,6 +165,28 @@ what the Dockerfile copies, and the Docker path is the portability guarantee —
 so the flag stays, conditioned on `VERCEL`, which Vercel sets in every build.
 Both paths verified after the change.
 
+## 2026-08-11 — Sections have no colours (0104)
+
+**Decision:** `sections.color` is dropped. Sections are identified by name.
+The calendar keeps a colour per *category*, and a section event is amber the
+way a social event is pink — that says what kind of event it is, not which
+section it belongs to.
+
+**Alternatives:** keep the column and leave the invented values in place;
+keep the column empty for a future HK to fill.
+
+**Why:** Phase one invented twelve hex values and flagged them for the HK to
+confirm. The answer (2026-08-11) was that the res has no section colours at
+all. A NOT NULL column full of made-up values is exactly what reads as
+meaningful to whoever inherits this, so it goes rather than lingers.
+
+**Worth recording for the next person:** phase two was briefed that swapping
+the colours later would be "a data edit, not a code change". That turned out
+to be wrong — the colours had reached fourteen components, three modules and
+the shared UI layer, so removing them was a migration plus a sweep. Design
+tokens that come from the database are still design decisions; treat "we can
+change it later in the data" with suspicion.
+
 ## 2026-08-11 — The repository is public, and that is what pays for the hosting
 
 **Decision:** `eendrag-app/eendrag-app` is a public repository. Vercel's Git

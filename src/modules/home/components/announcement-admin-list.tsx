@@ -17,7 +17,6 @@ export interface AdminAnnouncement {
   whenLabel: string;
   isUrgent: boolean;
   sectionName: string | null;
-  sectionColor: string | null;
   readCount: number | null;
 }
 
@@ -66,7 +65,7 @@ export function AnnouncementAdminList({ items }: { items: AdminAnnouncement[] })
                 </Badge>
               )}
               {item.sectionName && (
-                <SectionBadge name={item.sectionName} color={item.sectionColor} />
+                <SectionBadge name={item.sectionName} />
               )}
               {item.readCount !== null && (
                 <span className="text-muted-foreground ml-auto inline-flex items-center gap-1 text-sm">

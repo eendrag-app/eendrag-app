@@ -23,7 +23,7 @@ export default async function AdminAnnouncementsPage() {
     .from("announcements")
     // One string literal, or supabase-js cannot infer the row type.
     .select(
-      "id, title, status, scheduled_for, published_at, created_at, is_urgent, section:sections!announcements_target_section_id_fkey(name, color)",
+      "id, title, status, scheduled_for, published_at, created_at, is_urgent, section:sections!announcements_target_section_id_fkey(name)",
     )
     .order("created_at", { ascending: false })
     .limit(100);
@@ -50,7 +50,6 @@ export default async function AdminAnnouncementsPage() {
           : `Saved ${relativeTime(r.created_at, now)}`,
     isUrgent: r.is_urgent,
     sectionName: r.section?.name ?? null,
-    sectionColor: r.section?.color ?? null,
     readCount: r.status === "published" ? (countById.get(r.id) ?? 0) : null,
   }));
 

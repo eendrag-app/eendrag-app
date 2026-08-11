@@ -77,12 +77,12 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  /* Calendar category accents. The ONLY non-neutral colours in the app apart
-     from `destructive` (urgent) and the section colours that come from the
-     database. Used for dots and badges, never for surfaces — see
-     src/core/ui/event-categories.ts and docs/HANDOFF.md. */
+  /* Calendar category accents — what KIND of event something is. The only
+     non-neutral colours in the app apart from `destructive` (urgent). Used for
+     dots and badges, never for surfaces. See src/core/ui/event-categories.ts.
+     These are not section identities: the res has no section colours. */
   --event-res-wide: var(--primary);
-  --event-section: var(--muted-foreground); /* fallback; real one is sections.color */
+  --event-section: oklch(0.769 0.188 70.08); /* amber-500 */
   --event-intersection: oklch(0.606 0.25 292.717); /* violet-500 */
   --event-social: oklch(0.656 0.241 354.308); /* pink-500 */
   --event-sport: oklch(0.696 0.17 162.48); /* emerald-500 */
@@ -121,6 +121,7 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   /* Lighter tints so the accents stay visible on the dark surface. */
+  --event-section: oklch(0.828 0.189 84.429); /* amber-400 */
   --event-intersection: oklch(0.702 0.183 293.541); /* violet-400 */
   --event-social: oklch(0.718 0.202 349.761); /* pink-400 */
   --event-sport: oklch(0.765 0.177 163.223); /* emerald-400 */

@@ -17,7 +17,6 @@ export interface AdminEvent {
   whenLabel: string;
   location: string;
   sectionName: string | null;
-  sectionColor: string | null;
   sourceModule: string | null;
 }
 
@@ -45,7 +44,7 @@ export function EventAdminList({ items }: { items: AdminEvent[] }) {
           <li key={item.id} className="space-y-2 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">
-                <ColorDot color={eventCategoryColor(item.category, item.sectionColor)} />
+                <ColorDot color={eventCategoryColor(item.category)} />
                 {item.sectionName ?? eventCategoryLabel(item.category)}
               </Badge>
               {item.sourceModule && (

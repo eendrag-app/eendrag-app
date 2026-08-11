@@ -90,12 +90,14 @@ Already in place (don't invent a second design language):
 - **Colour discipline:** the neutral palette does almost everything.
   Reserved meanings:
   - *Urgent* = the `destructive` token (red) — urgent announcements only.
-  - *Section colours* = `sections.color` from the DB — ONLY for
-    section-coded elements: section badges, calendar dots for
-    section/intersection events, leaderboard rows. Never as decoration.
+  - *Section colours* — **withdrawn 2026-08-11.** This brief specified a
+    colour per section from `sections.color`; the HK confirmed the res has no
+    section colours, so the column was dropped (migration 0104) and sections
+    are identified by name alone. See docs/DECISIONS.md.
   - *Calendar categories:* colour the dot/badge, not the surface —
-    res_wide: `primary`; section: the section's colour; intersection:
-    `violet-500`; social: `pink-500`; sport: `emerald-500`. Define these
+    res_wide: `primary`; section: `amber-500` (a category colour, not a
+    section identity); intersection: `violet-500`; social: `pink-500`;
+    sport: `emerald-500`. Define these
     once in `src/core/ui/` or a shared module-free helper and import
     everywhere.
 - **Components:** shadcn primitives already installed: button, card, badge,

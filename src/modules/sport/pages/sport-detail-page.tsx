@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { createClient } from "@/core/db/server";
 import { requireProfile } from "@/core/permissions";
 import { formatDateTime, relativeTime, toLocalInput } from "@/core/ui/format";
-import { ColorDot, SectionBadge } from "@/core/ui/section-badge";
+import { SectionBadge } from "@/core/ui/section-badge";
 import { FixtureList, type FixtureItem } from "../components/fixture-list";
 import { ResultList, type ResultItem } from "../components/result-list";
 import { SignupButton } from "../components/signup-button";
@@ -30,7 +30,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
     // sports!rep_id is named explicitly: sport_signups points at both sports
     // and profiles, which makes a bare `profiles(...)` embed ambiguous.
     .select(
-      "id, name, description, practice_info, venue, coach, is_active, rep_id, rep:profiles!sports_rep_id_fkey(id, full_name, email, section:sections(name, color))",
+      "id, name, description, practice_info, venue, coach, is_active, rep_id, rep:profiles!sports_rep_id_fkey(id, full_name, email, section:sections(name))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -50,11 +50,11 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
       .limit(RECENT_RESULTS),
     db
       .from("sport_signups")
-      .select("profile:profiles(id, full_name, section:sections(name, color))")
+      .select("profile:profiles(id, full_name, section:sections(name))")
       .eq("sport_id", id),
     db
       .from("user_sports")
-      .select("profile:profiles(id, full_name, section:sections(name, color))")
+      .select("profile:profiles(id, full_name, section:sections(name))")
       .eq("sport_id", id),
     db
       .from("sport_signups")
@@ -71,7 +71,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
   // de-duplicated: signing up after listing it at onboarding is common.
   const squad = new Map<
     string,
-    { id: string; name: string; sectionName?: string; sectionColor?: string | null }
+    { id: string; name: string; sectionName?: string }
   >();
   for (const row of [...(players.data ?? []), ...(signups.data ?? [])]) {
     if (!row.profile) continue;
@@ -79,7 +79,6 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
       id: row.profile.id,
       name: row.profile.full_name || "Someone without a name yet",
       sectionName: row.profile.section?.name,
-      sectionColor: row.profile.section?.color,
     });
   }
 
@@ -150,11 +149,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{sport.rep.full_name || sport.rep.email}</p>
                 {sport.rep.section && (
-                  <SectionBadge
-                    name={sport.rep.section.name}
-                    color={sport.rep.section.color}
-                    className="mt-1"
-                  />
+                  <SectionBadge name={sport.rep.section.name} className="mt-1" />
                 )}
               </div>
               <Button
@@ -219,7 +214,6 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
                   key={person.id}
                   className="inline-flex items-center gap-1.5 rounded-4xl border px-2 py-1 text-sm"
                 >
-                  <ColorDot color={person.sectionColor} />
                   {person.name}
                   {person.sectionName && (
                     <span className="text-muted-foreground text-xs">{person.sectionName}</span>

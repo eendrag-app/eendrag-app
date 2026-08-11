@@ -16,7 +16,7 @@ export default async function MembersPage() {
 
   const { data } = await db
     .from("profiles")
-    .select("id, full_name, email, role, is_active, sections(name, color)")
+    .select("id, full_name, email, role, is_active, sections(name)")
     .order("full_name");
 
   const members: Member[] = (data ?? []).map((p) => ({
@@ -26,7 +26,6 @@ export default async function MembersPage() {
     role: p.role,
     isActive: p.is_active,
     sectionName: p.sections?.name ?? null,
-    sectionColor: p.sections?.color ?? null,
   }));
 
   return (

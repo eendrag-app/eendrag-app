@@ -22,7 +22,6 @@ export interface Member {
   role: string;
   isActive: boolean;
   sectionName: string | null;
-  sectionColor: string | null;
 }
 
 const ROLE_ITEMS = [
@@ -90,11 +89,7 @@ export function MembersList({ members }: { members: Member[] }) {
                 </p>
                 <p className="text-muted-foreground truncate text-sm">{member.email}</p>
                 {member.sectionName && (
-                  <SectionBadge
-                    name={member.sectionName}
-                    color={member.sectionColor}
-                    className="mt-1"
-                  />
+                  <SectionBadge name={member.sectionName} className="mt-1" />
                 )}
               </div>
 

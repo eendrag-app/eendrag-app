@@ -31,7 +31,6 @@ export interface LoadedEvent extends EventRow {
 export interface SectionRow {
   id: string;
   name: string;
-  color: string;
 }
 
 function toMatch(row: {
@@ -70,7 +69,7 @@ function toMatch(row: {
 /** The twelve sections, in their display order. */
 export async function loadSections(): Promise<SectionRow[]> {
   const db = await createClient();
-  const { data } = await db.from("sections").select("id, name, color").order("sort_order");
+  const { data } = await db.from("sections").select("id, name").order("sort_order");
   return data ?? [];
 }
 

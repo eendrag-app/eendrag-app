@@ -610,19 +610,16 @@ export type Database = {
       }
       sections: {
         Row: {
-          color: string
           id: string
           name: string
           sort_order: number
         }
         Insert: {
-          color: string
           id?: string
           name: string
           sort_order: number
         }
         Update: {
-          color?: string
           id?: string
           name?: string
           sort_order?: number

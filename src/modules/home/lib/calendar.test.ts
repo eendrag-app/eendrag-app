@@ -10,7 +10,6 @@ const event = (id: string, day: string): CalendarEvent => ({
   dayKey: day,
   timeLabel: "19:00",
   sectionName: null,
-  sectionColor: null,
   sourceModule: null,
 });
 
