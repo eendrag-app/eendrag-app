@@ -1,0 +1,31 @@
+# CI: typecheck, lint, unit tests, and a production build on every push/PR.
+# RLS tests (npm run test:rls) need a database and run locally for now — see
+# docs/OPERATIONS.md if you want them in CI later (supabase start works in
+# GitHub Actions).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - name: Production build
+        run: npm run build
+        env:
+          # Dummy values: the build only needs the vars to exist, it never
+          # connects. Real values live in Vercel / .env.local.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key

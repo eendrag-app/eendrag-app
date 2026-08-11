@@ -1,0 +1,21 @@
+# Run the app as a container against whatever Supabase you point it at —
+# the hosted project today, a university-run self-hosted Supabase later
+# (docs/OPERATIONS.md → "Leaving managed hosting" walks through that move;
+# the database itself is plain Postgres either way).
+#
+#   docker compose --env-file .env.local up --build
+#
+# The --env-file flag makes the NEXT_PUBLIC_* build args below resolve from
+# .env.local (compose only auto-reads a file literally named ".env");
+# env_file handles the runtime secrets.
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    env_file: .env.local
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
