@@ -104,6 +104,36 @@ stubbed" further down has NOT changed.
   exercised it before.
 - RLS suite is now 33 tests, all green against the hosted project.
 
+### Intersection (PR: intersection module)
+
+- **Real, and public without a login** — `/intersection` (season leaderboard
+  + events with a champion badge or a next-fixture line),
+  `/intersection/events/[id]` (group standings, every fixture by stage with
+  winners and score notes, rules, rosters), `/intersection/players` (events
+  entered and games won).
+- **Real** — `/intersection/admin`: events, leaderboard points, and the
+  player list. `/intersection/admin/[id]`: generate the draw, move teams
+  between groups until the games start, set a time per fixture, enter and
+  clear results, override a knockout pairing by hand, pick the roster.
+- **The rules are never reimplemented.** Draw generation, standings, knockout
+  progression, placements and points all come from `lib/tournament.ts` (the
+  phase-one port). The module loads rows, calls it, writes the answer back.
+- **The old app's guards are back, and tested** (`lib/guards.ts`, 11 tests):
+  a group result locks once any knockout has been played; a knockout result
+  locks once the match it feeds has been played; groups freeze when the first
+  group game is played; the draw can only be redone while nothing has been
+  played. Every guard is evaluated on the server and the reason is shown to
+  the admin.
+- **App-powers** — a fixture with a time mirrors onto the shared calendar
+  (and its title updates as the teams become known); results notify both
+  sections involved, including a "Katstraat move to 2nd" line when the
+  leaderboard actually shifted.
+- Verified against the hosted database: the seeded completed event renders
+  with Katstraat as champion and the leaderboard matches, a draw generated
+  through the UI produced 4 groups and 19 fixtures (12 group, 4 QF, 2 SF, 1
+  final), entering a result moved the event to "in progress" and locked the
+  groups. The test draw was removed afterwards.
+
 ### Known rough edge in the seed data
 
 `supabase/seed.sql` builds its times from `date_trunc('day', now())`, which
