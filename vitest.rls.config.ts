@@ -13,6 +13,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    setupFiles: ["supabase/tests/setup-env.ts"],
     include: ["supabase/tests/**/*.test.ts"],
     // One worker: tests share seeded fixtures in one database.
     fileParallelism: false,
