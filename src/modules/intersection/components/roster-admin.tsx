@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ColorDot } from "@/core/ui/section-badge";
 import { toggleRoster } from "../actions";
 import type { SectionOption } from "./match-admin";
 
@@ -53,10 +52,7 @@ export function RosterAdmin({
         if (sectionPlayers.length === 0) return null;
         return (
           <div key={section.id} className="space-y-1">
-            <p className="flex items-center gap-1.5 text-sm font-medium">
-              <ColorDot color={section.color} />
-              {section.name}
-            </p>
+            <p className="text-sm font-medium">{section.name}</p>
             <div className="grid grid-cols-2 gap-1">
               {sectionPlayers.map((player) => (
                 <label key={player.id} className="flex min-h-11 items-center gap-2 text-sm">

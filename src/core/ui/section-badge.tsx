@@ -1,35 +1,29 @@
 import { cn } from "@/lib/utils";
 
-// A section-coded chip: neutral text with the section's own colour as a dot.
+// A section chip: just the section's name.
 //
-// Why not colour the text or the background? Because the twelve section
-// colours come from the database (HK can change them) and none of them is
-// guaranteed to be readable on the card surface — in dark mode especially.
-// A dot is always legible, and the same rule keeps calendar dots and
-// leaderboard rows consistent (docs/HANDOFF.md → design direction).
-export function SectionBadge({
-  name,
-  color,
-  className,
-}: {
-  name: string;
-  color?: string | null;
-  className?: string;
-}) {
+// It used to carry a coloured dot, from a `sections.color` column phase one
+// invented. The res has no section colours, so that column is gone (migration
+// 0104) and so is the dot. Sections are told apart by their names, which is
+// how the res tells them apart.
+export function SectionBadge({ name, className }: { name: string; className?: string }) {
   return (
     <span
       className={cn(
-        "text-muted-foreground inline-flex h-5 w-fit shrink-0 items-center gap-1.5 rounded-4xl border px-2 text-xs font-medium",
+        "text-muted-foreground inline-flex h-5 w-fit shrink-0 items-center rounded-4xl border px-2 text-xs font-medium",
         className,
       )}
     >
-      <ColorDot color={color} />
       {name}
     </span>
   );
 }
 
-/** The coloured dot on its own — calendar cells, leaderboard rows, fixtures. */
+/**
+ * A small coloured dot, for CALENDAR CATEGORIES — res-wide, section, social,
+ * sport, intersection. Colours come from `eventCategoryColor`; nothing here
+ * encodes which section an event belongs to.
+ */
 export function ColorDot({
   color,
   className,

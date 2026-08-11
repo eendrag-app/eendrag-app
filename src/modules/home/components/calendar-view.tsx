@@ -176,7 +176,7 @@ export function CalendarView({
                         <ColorDot
                           key={e.id}
                           className="size-1.5"
-                          color={eventCategoryColor(e.category, e.sectionColor)}
+                          color={eventCategoryColor(e.category)}
                         />
                       ))}
                     </span>
@@ -236,7 +236,7 @@ function EventRow({ event }: { event: CalendarEvent }) {
     <li className="flex gap-2.5">
       <ColorDot
         className="mt-1.5"
-        color={eventCategoryColor(event.category, event.sectionColor)}
+        color={eventCategoryColor(event.category)}
         label={eventCategoryLabel(event.category)}
       />
       <div className="min-w-0 flex-1">

@@ -23,7 +23,7 @@ stubbed" further down has NOT changed.
   phone's setting) with an appearance menu in the header.
 - **Real** — shared module-free UI in `src/core/ui/`: date/time formatting
   (always Africa/Johannesburg, always server-side), calendar category
-  colours, section badge/dot, empty state.
+  colours, section badge, empty state.
 
 ### Profile (PR: profile module)
 
@@ -281,14 +281,14 @@ the privilege-guard triggers blocked service-role bootstrap (migration
 - Intersection: completed "Touch Rugby Day" with a full played-out bracket
   (Katstraat champion), upcoming "5-a-side Soccer" with no draw, 24
   placeholder players (2 per section) with rosters.
-- Real: the 12 section names. Section colours are my choices — HK should
-  confirm them (`sections.color`).
+- Real: the 12 section names. (Section colours were also seeded here; the
+  HK confirmed the res has none, and the column was dropped in phase two —
+  migration 0104.)
 - No sport reps assigned (reps must be real signed-up users; assign via
   Profile → Admin or `scripts/create-admin.mjs` pattern).
 
 ### Assumptions phase two should know
 
-- Section colours in `sections.color` are invented placeholders.
 - `profiles.email` duplicates auth email for convenience; res-internal
   visibility of names/sections/emails is accepted (280 people who live
   together).

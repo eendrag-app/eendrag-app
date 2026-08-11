@@ -20,7 +20,6 @@ export interface CalendarEvent {
   dayKey: string; // "2026-08-13", already in res time
   timeLabel: string; // "19:00"
   sectionName: string | null;
-  sectionColor: string | null;
   sourceModule: string | null; // null = created by hand by an admin
 }
 

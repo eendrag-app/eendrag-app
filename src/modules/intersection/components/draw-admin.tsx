@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ColorDot } from "@/core/ui/section-badge";
 import { generateDrawAction, swapGroupTeam } from "../actions";
 import type { SectionOption } from "./match-admin";
 
@@ -108,7 +107,6 @@ export function DrawAdmin({
                 <SelectContent>
                   {items.map((item) => (
                     <SelectItem key={item.value} value={item.value} className="h-9">
-                      <ColorDot color={sections.find((s) => s.id === item.value)?.color} />
                       {item.label}
                     </SelectItem>
                   ))}

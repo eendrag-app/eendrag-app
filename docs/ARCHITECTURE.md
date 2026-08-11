@@ -153,7 +153,8 @@ flagged in docs/BUILD-LOG.md.
 
 Schema map (details in the migration files, which are commented):
 
-- **core:** `sections` (the 12, + colour), `sports` (catalogue),
+- **core:** `sections` (the 12; no colours — see migration 0104),
+  `sports` (catalogue),
   `profiles` (role, section, quiet hours, ICS token), `user_sports`,
   `notification_preferences`, `notifications`, `verified_emails` (empty until
   the auth switch)

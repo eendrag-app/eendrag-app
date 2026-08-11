@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/core/ui/empty-state";
 import { formatDateTime, formatLongDate } from "@/core/ui/format";
-import { ColorDot } from "@/core/ui/section-badge";
 import { teamsLabel } from "../lib/copy";
 import { loadEvents, loadPoints, loadSections } from "../lib/load";
 import { leaderboard, placements } from "../lib/tournament";
@@ -22,7 +21,6 @@ export default async function IntersectionPage() {
     loadPoints(),
   ]);
   const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
-  const colorOf = (id: string) => sections.find((s) => s.id === id)?.color ?? null;
 
   const completed = events.filter((event) => event.status === "completed");
   const table = leaderboard(sections, completed, points);
@@ -57,7 +55,6 @@ export default async function IntersectionPage() {
                   <span className="text-muted-foreground w-6 text-sm tabular-nums">
                     {index + 1}
                   </span>
-                  <ColorDot color={colorOf(row.sectionId)} />
                   <span className="flex-1 text-sm font-medium">{row.name}</span>
                   {row.eventsWon > 0 && (
                     <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
@@ -125,7 +122,6 @@ export default async function IntersectionPage() {
                       {champion && (
                         <span className="inline-flex items-center gap-1.5 text-sm">
                           <Crown className="size-3.5" aria-hidden />
-                          <ColorDot color={colorOf(champion)} />
                           {nameOf(champion)} won it
                         </span>
                       )}

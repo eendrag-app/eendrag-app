@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ColorDot } from "@/core/ui/section-badge";
 import { clearResult, setMatchTeams, setMatchTime, setResult } from "../actions";
 
 export interface AdminMatch {
@@ -35,7 +34,6 @@ export interface AdminMatch {
 export interface SectionOption {
   id: string;
   name: string;
-  color: string;
 }
 
 // Entering results, setting times, and the two overrides the old app had:
@@ -122,7 +120,6 @@ export function MatchAdmin({
                         .filter((id): id is string => Boolean(id))
                         .map((id) => (
                           <SelectItem key={id} value={id} className="h-9">
-                            <ColorDot color={sections.find((s) => s.id === id)?.color} />
                             {sections.find((s) => s.id === id)?.name}
                           </SelectItem>
                         ))}

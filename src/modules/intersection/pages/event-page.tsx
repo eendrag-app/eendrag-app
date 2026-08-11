@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
 import { formatLongDate } from "@/core/ui/format";
-import { ColorDot } from "@/core/ui/section-badge";
 import { MatchRow, MatchTime } from "../components/match-row";
 import { stageLabel } from "../lib/copy";
 import { loadEvent, loadSections } from "../lib/load";
@@ -28,7 +27,6 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
 
   const nameOf = (sectionId: string) =>
     sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
-  const colorOf = (sectionId: string) => sections.find((s) => s.id === sectionId)?.color ?? null;
 
   const db = await createClient();
   const { data: roster } = await db
@@ -102,12 +100,7 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                       <tbody>
                         {table.map((row) => (
                           <tr key={row.sectionId}>
-                            <td className="py-1">
-                              <span className="flex items-center gap-1.5">
-                                <ColorDot color={colorOf(row.sectionId)} />
-                                {nameOf(row.sectionId)}
-                              </span>
-                            </td>
+                            <td className="py-1">{nameOf(row.sectionId)}</td>
                             <td className="text-right tabular-nums">{row.played}</td>
                             <td className="text-right tabular-nums">{row.won}</td>
                             <td className="text-right font-medium tabular-nums">{row.points}</td>
@@ -141,12 +134,7 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                           </span>
                           <MatchTime scheduledAt={match.scheduledAt} />
                         </div>
-                        <MatchRow
-                          match={match}
-                          note={match.note}
-                          nameOf={nameOf}
-                          colorOf={colorOf}
-                        />
+                        <MatchRow match={match} note={match.note} nameOf={nameOf} />
                       </div>
                     );
                   })}
@@ -179,10 +167,7 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
               .filter((section) => bySection.has(section.id))
               .map((section) => (
                 <div key={section.id}>
-                  <p className="flex items-center gap-1.5 text-sm font-medium">
-                    <ColorDot color={section.color} />
-                    {section.name}
-                  </p>
+                  <p className="text-sm font-medium">{section.name}</p>
                   <p className="text-muted-foreground text-sm">
                     {(bySection.get(section.id) ?? []).join(", ")}
                   </p>

@@ -23,7 +23,7 @@ export default async function ProfilePage() {
   const db = await createClient();
 
   const [sections, sports, played, prefs] = await Promise.all([
-    db.from("sections").select("id, name, color").order("sort_order"),
+    db.from("sections").select("id, name").order("sort_order"),
     db.from("sports").select("id, name").eq("is_active", true).order("name"),
     db.from("user_sports").select("sport_id").eq("profile_id", profile.id),
     db.from("notification_preferences").select("category, enabled"),
@@ -49,7 +49,7 @@ export default async function ProfilePage() {
         <h1 className="text-2xl font-semibold">
           {profile.full_name || "Your profile"}
         </h1>
-        {mySection && <SectionBadge name={mySection.name} color={mySection.color} />}
+        {mySection && <SectionBadge name={mySection.name} />}
       </div>
       <p className="text-muted-foreground -mt-2 text-sm">{profile.email}</p>
 

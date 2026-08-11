@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ColorDot } from "@/core/ui/section-badge";
 import { createPlayer, deletePlayer } from "../actions";
 import type { SectionOption } from "./match-admin";
 
@@ -117,10 +116,7 @@ export function PlayersAdmin({
           if (sectionPlayers.length === 0) return null;
           return (
             <div key={section.id} className="space-y-1">
-              <p className="flex items-center gap-1.5 text-sm font-medium">
-                <ColorDot color={section.color} />
-                {section.name}
-              </p>
+              <p className="text-sm font-medium">{section.name}</p>
               <ul className="divide-y">
                 {sectionPlayers.map((player) => (
                   <li key={player.id} className="flex items-center gap-2 py-2 text-sm">

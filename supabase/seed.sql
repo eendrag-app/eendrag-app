@@ -13,22 +13,23 @@
 set timezone = 'Africa/Johannesburg';
 
 -- ---------------------------------------------------------------------------
--- The 12 sections (real). Colours are the section accents used for
--- section-coded UI only — see docs/HANDOFF.md → design direction.
+-- The 12 sections. These names are REAL — everything else in this file is
+-- placeholder. Sections have no colours (migration 0104); they are told apart
+-- by name, the way the res tells them apart.
 -- ---------------------------------------------------------------------------
-insert into sections (name, color, sort_order) values
-  ('Here XVII',     '#8b1e3f', 1),
-  ('Wallstreet',    '#1f6f43', 2),
-  ('Ingang',        '#1d4ed8', 3),
-  ('Stopstraat',    '#b91c1c', 4),
-  ('Katstraat',     '#7c3aed', 5),
-  ('Bun Boulevard', '#b45309', 6),
-  ('District',      '#0e7490', 7),
-  ('Sensasie',      '#be185d', 8),
-  ('Wineroute',     '#6d28d9', 9),
-  ('Jacaranda',     '#4d7c0f', 10),
-  ('Arendstraat',   '#c2410c', 11),
-  ('Route 61',      '#334155', 12);
+insert into sections (name, sort_order) values
+  ('Here XVII',     1),
+  ('Wallstreet',    2),
+  ('Ingang',        3),
+  ('Stopstraat',    4),
+  ('Katstraat',     5),
+  ('Bun Boulevard', 6),
+  ('District',      7),
+  ('Sensasie',      8),
+  ('Wineroute',     9),
+  ('Jacaranda',     10),
+  ('Arendstraat',   11),
+  ('Route 61',      12);
 
 -- ---------------------------------------------------------------------------
 -- Sports (placeholder list — edit freely). rep_id stays null until real reps
