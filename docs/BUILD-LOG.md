@@ -180,6 +180,30 @@ loads (12 sections, 8 sports, 5 announcements, 19 intersection matches), the
 API roles can read, and `npm run create-admin` succeeds — the exact failure
 0101 had originally been written for.
 
+### Deployed (2026-08-11)
+
+Live at **https://eendrag-app.vercel.app** — Vercel project `eendrag-app`,
+production env vars set, verified after deploying: `/intersection` public and
+showing the real leaderboard, `/` redirecting to login, sign-in working, the
+feed and sport pages rendering hosted data, the ICS feed returning
+`text/calendar`, the cron route 401 without its secret and `{"ok":true}` with
+it.
+
+Two things the deploy itself taught us, both fixed and recorded in
+DECISIONS.md:
+
+- `output: "standalone"` is **not** ignored by Vercel — it broke the build.
+  It is now conditional on not being on Vercel; Docker still gets it.
+- The Hobby plan caps crons at once a day, so the schedule is `0 6 * * *`
+  instead of `*/5 * * * *`. **A post scheduled for 14:00 goes out at 06:00 the
+  next morning** until either the plan is upgraded or an external scheduler
+  hits `/api/cron/tick?secret=…` every five minutes.
+
+Also outstanding: the Hobby plan cannot connect a private repository owned by
+an organisation, so **merging to `main` does not deploy** — deploys are
+`npx vercel --prod` from a clone for now. Three ways to fix that are in
+OPERATIONS.md → Deploy.
+
 ### Also verified
 
 - **Playwright**: 24 smoke tests (12 × mobile + desktop) green — public

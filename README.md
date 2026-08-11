@@ -4,6 +4,10 @@ The official app of Eendrag residence, Stellenbosch — announcements,
 calendar, sport, and the inter-section competition. It replaces the 280-person
 WhatsApp announcement group.
 
+**Live: https://eendrag-app.vercel.app** — deploys are manual for now
+(`npx vercel --prod`); why, and how to make them automatic, is in
+[docs/OPERATIONS.md](docs/OPERATIONS.md).
+
 New maintainer? Read this file, then [CLAUDE.md](CLAUDE.md) (context for AI
 sessions, useful for humans too), then [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Routine admin tasks (posting announcements, adding reps) need no developer at
