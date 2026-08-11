@@ -1,0 +1,196 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/core/db/server";
+import { formatLongDate } from "@/core/ui/format";
+import { ColorDot } from "@/core/ui/section-badge";
+import { MatchRow, MatchTime } from "../components/match-row";
+import { stageLabel } from "../lib/copy";
+import { loadEvent, loadSections } from "../lib/load";
+import { standings, type Stage } from "../lib/tournament";
+
+export const metadata = { title: "Intersection" };
+
+const STAGE_HEADINGS: Record<Stage, string> = {
+  group: "Group games",
+  qf: "Quarter-finals",
+  sf: "Semi-finals",
+  final: "Final",
+};
+
+// PUBLIC — this is the page that gets pasted into WhatsApp.
+export default async function EventPage({ params }: PageProps<"/intersection/events/[id]">) {
+  const { id } = await params;
+  const [event, sections] = await Promise.all([loadEvent(id), loadSections()]);
+  if (!event) notFound();
+
+  const nameOf = (sectionId: string) =>
+    sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
+  const colorOf = (sectionId: string) => sections.find((s) => s.id === sectionId)?.color ?? null;
+
+  const db = await createClient();
+  const { data: roster } = await db
+    .from("intersection_rosters")
+    .select("player:intersection_players(id, name, section_id)")
+    .eq("event_id", id);
+
+  const bySection = new Map<string, string[]>();
+  for (const row of roster ?? []) {
+    if (!row.player) continue;
+    const list = bySection.get(row.player.section_id) ?? [];
+    list.push(row.player.name);
+    bySection.set(row.player.section_id, list);
+  }
+
+  const stages: Stage[] = ["group", "qf", "sf", "final"];
+
+  return (
+    <div className="space-y-4">
+      <Link
+        href="/intersection"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
+      >
+        <ChevronLeft className="size-4" aria-hidden />
+        Intersection
+      </Link>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h1 className="text-2xl font-semibold">{event.name}</h1>
+        <Badge variant={event.status === "completed" ? "secondary" : "outline"}>
+          {event.status === "completed"
+            ? "Finished"
+            : event.status === "in_progress"
+              ? "In progress"
+              : "Upcoming"}
+        </Badge>
+      </div>
+      {event.startDate && (
+        <p className="text-muted-foreground -mt-2 text-sm">
+          {formatLongDate(new Date(`${event.startDate}T12:00:00Z`))}
+        </p>
+      )}
+
+      {event.groups.length === 0 ? (
+        <Card>
+          <CardContent className="text-muted-foreground text-sm">
+            The draw has not been made yet. Four groups of three, then quarter-finals,
+            semis and a final — check back once the HK has drawn it.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {event.groups.map((group) => {
+              const table = standings(group, event.matches, nameOf);
+              return (
+                <Card key={group.id}>
+                  <CardHeader>
+                    <CardTitle>Group {group.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-muted-foreground text-xs">
+                          <th className="pb-1 text-left font-normal">Section</th>
+                          <th className="pb-1 text-right font-normal">P</th>
+                          <th className="pb-1 text-right font-normal">W</th>
+                          <th className="pb-1 text-right font-normal">Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {table.map((row) => (
+                          <tr key={row.sectionId}>
+                            <td className="py-1">
+                              <span className="flex items-center gap-1.5">
+                                <ColorDot color={colorOf(row.sectionId)} />
+                                {nameOf(row.sectionId)}
+                              </span>
+                            </td>
+                            <td className="text-right tabular-nums">{row.played}</td>
+                            <td className="text-right tabular-nums">{row.won}</td>
+                            <td className="text-right font-medium tabular-nums">{row.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {stages.map((stage) => {
+            const matches = event.matches.filter((m) => m.stage === stage);
+            if (matches.length === 0) return null;
+            return (
+              <Card key={stage}>
+                <CardHeader>
+                  <CardTitle>{STAGE_HEADINGS[stage]}</CardTitle>
+                </CardHeader>
+                <CardContent className="divide-y">
+                  {matches.map((match) => {
+                    const groupName =
+                      event.groups.find((g) => g.id === match.groupId)?.name ?? null;
+                    return (
+                      <div key={match.id} className="py-1">
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <span className="text-muted-foreground text-xs font-medium">
+                            {stageLabel(match, groupName)}
+                          </span>
+                          <MatchTime scheduledAt={match.scheduledAt} />
+                        </div>
+                        <MatchRow
+                          match={match}
+                          note={match.note}
+                          nameOf={nameOf}
+                          colorOf={colorOf}
+                        />
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </>
+      )}
+
+      {event.rules && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rules</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-line">{event.rules}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {bySection.size > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Who is playing</CardTitle>
+            <CardDescription>The rosters the HK entered for this event.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {sections
+              .filter((section) => bySection.has(section.id))
+              .map((section) => (
+                <div key={section.id}>
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <ColorDot color={section.color} />
+                    {section.name}
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {(bySection.get(section.id) ?? []).join(", ")}
+                  </p>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
