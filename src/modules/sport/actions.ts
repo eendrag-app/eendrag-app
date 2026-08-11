@@ -1,0 +1,418 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { removeModuleEvent, upsertModuleEvent } from "@/core/calendar";
+import { createClient } from "@/core/db/server";
+import { notify } from "@/core/notifications";
+import { requireProfile, requireRole } from "@/core/permissions";
+import { formatDateTime, fromLocalInput } from "@/core/ui/format";
+import { fixtureChange, fixtureTitle, practiceChanged, resultTitle } from "./lib/sport";
+
+// Sport writes. Who may do what is decided by RLS (migration 0400): admins
+// anywhere, a rep only on the sport whose rep_id is them. The checks here
+// fail fast and produce a readable message; they are not the gate.
+
+const MODULE = "sport";
+
+async function loadSport(sportId: string) {
+  const db = await createClient();
+  const { data } = await db
+    .from("sports")
+    .select("id, name, practice_info, venue, coach, description, rep_id")
+    .eq("id", sportId)
+    .single();
+  return data;
+}
+
+const detailsInput = z.object({
+  sportId: z.uuid(),
+  practiceInfo: z.string().trim().max(200),
+  venue: z.string().trim().max(200),
+  coach: z.string().trim().max(120),
+  description: z.string().trim().max(4000),
+});
+
+/**
+ * The rep's own page-edit. Players get exactly ONE notification, and only
+ * when the practice time or the venue actually moved — nobody needs a push
+ * because a typo in the description got fixed.
+ */
+export async function updateSportDetails(formData: FormData) {
+  await requireProfile();
+  const parsed = detailsInput.safeParse({
+    sportId: formData.get("sportId"),
+    practiceInfo: formData.get("practiceInfo") ?? "",
+    venue: formData.get("venue") ?? "",
+    coach: formData.get("coach") ?? "",
+    description: formData.get("description") ?? "",
+  });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+  const input = parsed.data;
+
+  const before = await loadSport(input.sportId);
+  if (!before) return { ok: false as const, error: "That sport is gone" };
+
+  const db = await createClient();
+  const { data, error } = await db
+    .from("sports")
+    .update({
+      practice_info: input.practiceInfo,
+      venue: input.venue,
+      coach: input.coach,
+      description: input.description,
+    })
+    .eq("id", input.sportId)
+    .select("id");
+  if (error) return { ok: false as const, error: "Could not save the changes" };
+  // RLS returns zero rows rather than an error when the policy says no.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: "Only this sport's rep or an admin can edit it" };
+  }
+
+  if (
+    practiceChanged(
+      { practiceInfo: before.practice_info, venue: before.venue },
+      { practiceInfo: input.practiceInfo, venue: input.venue },
+    )
+  ) {
+    await notify({
+      category: "sport",
+      title: `${before.name}: practice details changed`,
+      body: [input.practiceInfo, input.venue].filter(Boolean).join(" · "),
+      url: `/sport/${input.sportId}`,
+      sourceModule: MODULE,
+      sourceRef: input.sportId,
+      audience: { kind: "sport", sportId: input.sportId },
+    });
+  }
+
+  revalidatePath(`/sport/${input.sportId}`);
+  revalidatePath("/sport");
+  return { ok: true as const };
+}
+
+const fixtureInput = z.object({
+  id: z.uuid().optional(),
+  sportId: z.uuid(),
+  opponent: z.string().trim().max(120),
+  location: z.string().trim().max(200),
+  startsAt: z.string().min(1, "When does it start?"),
+  notes: z.string().trim().max(500),
+});
+
+/**
+ * Create or update a fixture. The calendar entry is a mirror keyed on
+ * (source_module, source_ref), so writing the same fixture twice updates the
+ * event in place instead of duplicating it.
+ */
+export async function saveFixture(formData: FormData) {
+  await requireProfile();
+  const id = String(formData.get("id") ?? "");
+  const parsed = fixtureInput.safeParse({
+    id: id === "" ? undefined : id,
+    sportId: formData.get("sportId"),
+    opponent: formData.get("opponent") ?? "",
+    location: formData.get("location") ?? "",
+    startsAt: formData.get("startsAt"),
+    notes: formData.get("notes") ?? "",
+  });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+  const input = parsed.data;
+
+  const sport = await loadSport(input.sportId);
+  if (!sport) return { ok: false as const, error: "That sport is gone" };
+
+  const db = await createClient();
+  const startsAt = fromLocalInput(input.startsAt);
+  const row = {
+    sport_id: input.sportId,
+    opponent: input.opponent,
+    location: input.location,
+    starts_at: startsAt.toISOString(),
+    notes: input.notes,
+  };
+
+  let fixtureId = input.id;
+  let before: { startsAt: string; location: string } | null = null;
+
+  if (fixtureId) {
+    const { data: existing } = await db
+      .from("sport_fixtures")
+      .select("starts_at, location")
+      .eq("id", fixtureId)
+      .single();
+    before = existing ? { startsAt: existing.starts_at, location: existing.location } : null;
+    const { data, error } = await db
+      .from("sport_fixtures")
+      .update(row)
+      .eq("id", fixtureId)
+      .select("id");
+    if (error) return { ok: false as const, error: "Could not save the fixture" };
+    if (!data || data.length === 0) {
+      return { ok: false as const, error: "Only this sport's rep or an admin can post fixtures" };
+    }
+  } else {
+    const { data, error } = await db.from("sport_fixtures").insert(row).select("id").single();
+    if (error || !data) {
+      return { ok: false as const, error: "Only this sport's rep or an admin can post fixtures" };
+    }
+    fixtureId = data.id;
+  }
+
+  const title = fixtureTitle(sport.name, input.opponent);
+  await upsertModuleEvent({
+    sourceModule: MODULE,
+    sourceRef: fixtureId,
+    title,
+    description: input.notes,
+    category: "sport",
+    location: input.location,
+    startsAt,
+  });
+
+  const change = fixtureChange(before, { startsAt: row.starts_at, location: row.location });
+  if (change) {
+    await notify({
+      category: "sport",
+      title: change === "new" ? `New fixture: ${title}` : `Moved: ${title}`,
+      body: `${formatDateTime(startsAt)}${input.location ? ` · ${input.location}` : ""}`,
+      url: `/sport/${input.sportId}`,
+      sourceModule: MODULE,
+      sourceRef: fixtureId,
+      audience: { kind: "sport", sportId: input.sportId },
+    });
+  }
+
+  revalidatePath(`/sport/${input.sportId}`);
+  revalidatePath("/");
+  return { ok: true as const };
+}
+
+export async function deleteFixture(fixtureId: string, sportId: string) {
+  await requireProfile();
+  const parsed = z.object({ fixtureId: z.uuid(), sportId: z.uuid() }).safeParse({ fixtureId, sportId });
+  if (!parsed.success) return { ok: false as const, error: "Unknown fixture" };
+
+  const db = await createClient();
+  const { data, error } = await db
+    .from("sport_fixtures")
+    .delete()
+    .eq("id", parsed.data.fixtureId)
+    .select("id");
+  if (error) return { ok: false as const, error: "Could not delete the fixture" };
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: "Only this sport's rep or an admin can do that" };
+  }
+
+  // Deleting the source removes its calendar entry.
+  await removeModuleEvent(MODULE, parsed.data.fixtureId);
+
+  revalidatePath(`/sport/${parsed.data.sportId}`);
+  revalidatePath("/");
+  return { ok: true as const };
+}
+
+const resultInput = z.object({
+  sportId: z.uuid(),
+  summary: z.string().trim().min(1, "Say what happened").max(300),
+  score: z.string().trim().max(60),
+  fixtureId: z.uuid().nullable(),
+});
+
+/**
+ * Post a result. Three things happen: the result row, a short system
+ * announcement on the feed so the whole res sees it, and one notification to
+ * the people who play that sport.
+ *
+ * The announcement is written as the rep, under the rep's own session — the
+ * narrow insert policy added in migration 0401 is what allows it. If that
+ * insert is ever refused the result still stands; the rep is told the feed
+ * post did not happen rather than losing their work.
+ */
+export async function postResult(formData: FormData) {
+  const profile = await requireProfile();
+  const fixtureId = String(formData.get("fixtureId") ?? "");
+  const parsed = resultInput.safeParse({
+    sportId: formData.get("sportId"),
+    summary: formData.get("summary"),
+    score: formData.get("score") ?? "",
+    fixtureId: fixtureId === "" ? null : fixtureId,
+  });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+  const input = parsed.data;
+
+  const sport = await loadSport(input.sportId);
+  if (!sport) return { ok: false as const, error: "That sport is gone" };
+
+  const db = await createClient();
+  const { data: result, error } = await db
+    .from("sport_results")
+    .insert({
+      sport_id: input.sportId,
+      fixture_id: input.fixtureId,
+      summary: input.summary,
+      score: input.score,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (error || !result) {
+    return { ok: false as const, error: "Only this sport's rep or an admin can post results" };
+  }
+
+  const headline = resultTitle(sport.name, input.summary, input.score);
+  const { error: announcementError } = await db.from("announcements").insert({
+    title: headline,
+    body: "",
+    author_id: profile.id,
+    is_system: true,
+    status: "published",
+    published_at: new Date().toISOString(),
+  });
+
+  await notify({
+    category: "sport",
+    title: headline,
+    url: `/sport/${input.sportId}`,
+    sourceModule: MODULE,
+    sourceRef: result.id,
+    audience: { kind: "sport", sportId: input.sportId },
+  });
+
+  revalidatePath(`/sport/${input.sportId}`);
+  revalidatePath("/sport");
+  revalidatePath("/");
+  if (announcementError) {
+    return {
+      ok: false as const,
+      error: "The result is saved, but it could not be posted to the feed. Tell an admin.",
+    };
+  }
+  return { ok: true as const };
+}
+
+export async function deleteResult(resultId: string, sportId: string) {
+  await requireProfile();
+  const parsed = z.object({ resultId: z.uuid(), sportId: z.uuid() }).safeParse({ resultId, sportId });
+  if (!parsed.success) return { ok: false as const, error: "Unknown result" };
+
+  const db = await createClient();
+  const { data, error } = await db
+    .from("sport_results")
+    .delete()
+    .eq("id", parsed.data.resultId)
+    .select("id");
+  if (error) return { ok: false as const, error: "Could not delete the result" };
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: "Only this sport's rep or an admin can do that" };
+  }
+
+  revalidatePath(`/sport/${parsed.data.sportId}`);
+  revalidatePath("/sport");
+  return { ok: true as const };
+}
+
+/** "I want to play." Own row only, and pressing it again undoes it. */
+export async function toggleSignup(sportId: string, signedUp: boolean) {
+  const profile = await requireProfile();
+  const parsed = z.uuid().safeParse(sportId);
+  if (!parsed.success) return { ok: false as const, error: "Unknown sport" };
+
+  const db = await createClient();
+  if (signedUp) {
+    const { error } = await db
+      .from("sport_signups")
+      .delete()
+      .eq("sport_id", parsed.data)
+      .eq("profile_id", profile.id);
+    if (error) return { ok: false as const, error: "Could not take you off the list" };
+  } else {
+    const { error } = await db
+      .from("sport_signups")
+      .upsert(
+        { sport_id: parsed.data, profile_id: profile.id },
+        { onConflict: "sport_id,profile_id", ignoreDuplicates: true },
+      );
+    if (error) return { ok: false as const, error: "Could not add you to the list" };
+  }
+
+  revalidatePath(`/sport/${parsed.data}`);
+  return { ok: true as const };
+}
+
+// --- admin: the catalogue itself --------------------------------------------
+
+const newSportInput = z.object({
+  name: z.string().trim().min(2, "Give the sport a name").max(80),
+});
+
+export async function createSport(formData: FormData) {
+  await requireRole("admin");
+  const parsed = newSportInput.safeParse({ name: formData.get("name") });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+
+  const db = await createClient();
+  const { error } = await db.from("sports").insert({ name: parsed.data.name });
+  if (error) {
+    return {
+      ok: false as const,
+      error: error.code === "23505" ? "There is already a sport with that name" : "Could not add it",
+    };
+  }
+
+  revalidatePath("/sport");
+  revalidatePath("/sport/admin");
+  return { ok: true as const };
+}
+
+export async function setSportActive(sportId: string, isActive: boolean) {
+  await requireRole("admin");
+  const parsed = z.uuid().safeParse(sportId);
+  if (!parsed.success) return { ok: false as const, error: "Unknown sport" };
+
+  const db = await createClient();
+  const { error } = await db.from("sports").update({ is_active: isActive }).eq("id", parsed.data);
+  if (error) return { ok: false as const, error: "Could not change that" };
+
+  revalidatePath("/sport");
+  revalidatePath("/sport/admin");
+  return { ok: true as const };
+}
+
+/**
+ * Assign (or clear) a sport's rep. Admin-only twice over: the check here and
+ * the app_guard_sport_rep trigger in the database, which rejects a rep_id
+ * change from anyone who is not an admin.
+ */
+export async function assignRep(sportId: string, profileId: string | null) {
+  await requireRole("admin");
+  const parsed = z
+    .object({ sportId: z.uuid(), profileId: z.uuid().nullable() })
+    .safeParse({ sportId, profileId: profileId === "" ? null : profileId });
+  if (!parsed.success) return { ok: false as const, error: "Unknown sport or person" };
+
+  const db = await createClient();
+  const { error } = await db
+    .from("sports")
+    .update({ rep_id: parsed.data.profileId })
+    .eq("id", parsed.data.sportId);
+  if (error) return { ok: false as const, error: "Could not set the rep" };
+
+  // A rep needs the sport_rep role to see the admin panel; give it to them
+  // here so appointing a rep is one action rather than two screens.
+  if (parsed.data.profileId) {
+    const { data: person } = await db
+      .from("profiles")
+      .select("role")
+      .eq("id", parsed.data.profileId)
+      .single();
+    if (person?.role === "student") {
+      await db.from("profiles").update({ role: "sport_rep" }).eq("id", parsed.data.profileId);
+    }
+  }
+
+  revalidatePath("/sport");
+  revalidatePath("/sport/admin");
+  return { ok: true as const };
+}

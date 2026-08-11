@@ -14,9 +14,9 @@ together and new modules never collide:
 | Block | Owner |
 | --- | --- |
 | 0100–0199 | core (profiles, sections, sports catalogue, notifications) |
-| 0200–0299 | core calendar (events) |
+| 0200–0299 | core calendar (0200 events, 0201 upsertable source index) |
 | 0300–0399 | home (announcements) |
-| 0400–0499 | sport |
+| 0400–0499 | sport (0400 init, 0401 rep system announcements) |
 | 0500–0599 | intersection |
 | 0600–0699 | profile |
 | 0700+ | next module — claim the next free block in this table |

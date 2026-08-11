@@ -77,6 +77,33 @@ stubbed" further down has NOT changed.
   mirror.
 - The ICS feed (shipped with Profile) carries all of it into phone calendars.
 
+### Sport (PR: sport module)
+
+- **Real** — `/sport`: every active sport as a row with its practice summary
+  and its most recent result. `/sport/[id]`: practice, venue, coach,
+  description, the rep's card with an email button, fixtures, results, the
+  squad (people who play it plus people who signed up), and a sign-up button
+  with undo.
+- **Real** — rep editing lives on the sport's own page, not a separate admin
+  screen: practice/venue/coach/description, fixture create-edit-delete, and
+  result posting. Fixtures mirror onto the shared calendar through
+  `upsertModuleEvent`; deleting one removes its calendar entry.
+- **Real** — notifications are one per action and only when something moved:
+  a practice/venue change sends one (not one per field), a new or moved
+  fixture sends one, a result sends one. Verified end to end by driving the
+  UI as a real sport rep against the hosted database.
+- **Real** — posting a result also writes the one-line announcement to the
+  res feed, authored by the rep. That needed a new narrow insert policy —
+  migration **0401**, with six RLS tests (see DECISIONS.md).
+- **Real** — `/sport/admin`: add a sport, pause one, and appoint reps
+  (appointing also grants the sport_rep role). Reps see a link to their own
+  sport instead.
+- **Migration 0201** fixes a phase-one bug found here: the unique index behind
+  `upsertModuleEvent` was partial, which Postgres refuses to use for
+  `on conflict`, so every module calendar mirror failed. Nothing had
+  exercised it before.
+- RLS suite is now 33 tests, all green against the hosted project.
+
 ### Known rough edge in the seed data
 
 `supabase/seed.sql` builds its times from `date_trunc('day', now())`, which

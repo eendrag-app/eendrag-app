@@ -13,7 +13,8 @@
     "test:rls": "vitest run --config vitest.rls.config.ts",
     "test:e2e": "playwright test",
     "db:push": "supabase db push --include-all",
-    "db:types": "supabase gen types typescript --local > src/core/db/database.types.ts",
+    "db:types": "supabase gen types typescript --linked > src/core/db/database.types.ts",
+    "db:types:local": "supabase gen types typescript --local > src/core/db/database.types.ts",
     "create-admin": "node --env-file=.env.local scripts/create-admin.mjs",
     "db:reset": "supabase db reset --linked",
     "check": "npm run typecheck && npm run lint && npm run test"
