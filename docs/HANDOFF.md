@@ -1,5 +1,12 @@
 # HANDOFF — the phase-two brief
 
+> **Phase two is built** (2026-08-11). This document is kept as the
+> specification the four modules were written to — it is still the place to
+> look before changing how a screen behaves. What actually exists, and where
+> it differs from this brief, is in **docs/BUILD-LOG.md**; why anything
+> differs is in **docs/DECISIONS.md**. The "Known gaps" in §6 have been
+> closed except web push, which is still v1.1.
+
 You are building the feature UIs of the Eendrag res app on a finished
 foundation. You have **no context from phase one and nobody to ask** — this
 document plus the repo is everything. Read CLAUDE.md first, then this, and

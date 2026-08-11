@@ -66,7 +66,8 @@ or the password manager, and skip `supabase start`.
 | `npm run test:rls` | RLS policy proofs — needs a live database and `.env.local` |
 | `npm run test:e2e` | Playwright smoke tests (starts the dev server itself) |
 | `npm run db:push` | Apply new migrations to the linked/local database |
-| `npm run db:types` | Regenerate `src/core/db/database.types.ts` after schema changes |
+| `npm run db:types` | Regenerate `src/core/db/database.types.ts` from the linked (hosted) project |
+| `npm run db:types:local` | Same, from a local `supabase start` stack |
 | `npm run create-admin` | Create/promote the dev admin (see below) |
 | `npx supabase db reset` | Wipe + migrations + seed — local db only |
 
@@ -81,6 +82,12 @@ convenience only — never create it on the production project.
 All of them are listed with explanations in [.env.example](.env.example).
 `.env.local` is gitignored; real production values live in the password
 manager and the Vercel project settings, never in the repo.
+
+One worth knowing about: **`CRON_SECRET`**. It protects `/api/cron/tick`,
+which publishes scheduled announcements and sends day-of reminders. Without
+it that route refuses to run, and the compose screen warns that scheduling is
+not wired up. Any random string will do locally
+(`node -e "console.log(crypto.randomUUID())"`).
 
 ## Tests before you push
 

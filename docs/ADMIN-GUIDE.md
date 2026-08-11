@@ -42,10 +42,17 @@ never add those by hand, they'd just duplicate.
 Each sport has one rep. The rep can edit their own sport's page (practice
 times, venue, description), post fixtures and results — and nothing else.
 
-- **Appoint a rep:** Profile → Admin tools → Sports & reps → choose the
-  sport → set the rep. The person must have created an account first.
+- **Appoint a rep:** Profile → Admin tools → Sports & reps → find the sport →
+  pick the person from the dropdown. They must have created an account first.
+  That one action also gives them the sport-rep role, so there is nothing to
+  do under Members.
 - **Change of rep:** same place, pick the new person. The old rep loses
   editing rights immediately.
+- **A rep edits their sport on the sport's own page** — the same page
+  everyone else reads. Practice times, venue, coach, description, fixtures
+  and results are all there once they are signed in.
+- **Pause a sport** (nobody is running it this year) with the switch next to
+  it. Its fixtures and results are kept; it just leaves the Sport tab.
 
 ## Run an intersection event
 
@@ -61,8 +68,22 @@ Profile → Admin tools → **Intersection**:
 6. Standings, knockout pairings, and the leaderboard update automatically.
    Group winners advance per the fixed bracket; the final decides the
    champion. Points: 15 champion, 12 runner-up, 9 semis, 6 quarters, 3 group
-   exit (changeable under Settings, but change mid-season and people will
-   have opinions).
+   exit (changeable under **Leaderboard points** on the intersection admin
+   page, but change mid-season and people will have opinions).
+
+**When the app says no.** Some edits are refused on purpose, and it tells you
+why:
+
+- you cannot clear a group result once any knockout game has been played —
+  the quarter-finals were decided by those standings, so clear the knockout
+  results first;
+- you cannot clear a knockout result once the game it fed has been played;
+- groups are fixed as soon as the first group game is played;
+- the draw can only be redone while nothing has been played at all.
+
+For a three-way tie the standings cannot split, use **Edit teams** on a
+knockout fixture to set the pairing by hand. The app then leaves that match
+alone.
 
 Fixture pages are public links — paste them straight into WhatsApp; nobody
 needs to log in to view.

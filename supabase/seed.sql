@@ -5,6 +5,12 @@
 -- events, players, and results with real data by editing THIS ONE FILE.
 -- The dev admin account is NOT created here — run `npm run create-admin`
 -- (scripts/create-admin.ts, documented in README.md).
+--
+-- Times below are written as res times ("19:00" means 19:00 in Stellenbosch).
+-- date_trunc() on a timestamptz truncates in the SESSION's timezone, which is
+-- UTC by default — so without this line every seeded event would land two
+-- hours later than its own copy claims.
+set timezone = 'Africa/Johannesburg';
 
 -- ---------------------------------------------------------------------------
 -- The 12 sections (real). Colours are the section accents used for

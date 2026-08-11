@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
 import { OnboardingForm } from "./onboarding-form";
 
@@ -18,15 +18,13 @@ export default async function OnboardingPage() {
   ]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <h1>Welcome to Eendrag</h1>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <OnboardingForm sections={sections ?? []} sports={sports ?? []} />
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold">Welcome to Eendrag</h1>
+      <Card>
+        <CardContent>
+          <OnboardingForm sections={sections ?? []} sports={sports ?? []} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

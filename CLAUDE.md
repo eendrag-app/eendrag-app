@@ -36,8 +36,10 @@ src/modules/      One folder per mini-app: home, sport, intersection, profile,
                   _template (copy me). Each declares itself via module.ts
                   (AppModule) and is listed in registry.ts.
 src/core/         auth/ (provider, session middleware), db/ (browser/server/
-                  admin clients + database.types.ts), permissions/, calendar/,
-                  notifications/ (targeting, quiet hours, pipeline, channels).
+                  admin clients + database.types.ts), permissions/, calendar/
+                  (+ ics for the feed), notifications/ (targeting, quiet
+                  hours, pipeline, channels), ui/ (module-free shared bits:
+                  date formatting, category colours, the bell, theme).
 supabase/         migrations/ (numbered per module — README there), seed.sql
                   (ALL placeholder data in this one file), tests/ (RLS proofs).
 docs/             ARCHITECTURE, ADDING-A-MODULE, ADMIN-GUIDE, OPERATIONS,
@@ -83,9 +85,9 @@ branch + PR (`gh pr create`), conventional commits.
   `src/core/notifications/channels.ts`). The pipeline, targeting, quiet
   hours, and the in-app rows are real and tested; only the push transport is
   missing (v1.1). The stub documents exactly how to build it.
-- **The four feature modules are placeholder pages.** Phase two builds their
-  UIs from `docs/HANDOFF.md`, which specs every screen. Don't invent
-  behaviour that HANDOFF already specifies.
+- **The four feature modules are built** (phase two, docs/BUILD-LOG.md).
+  `docs/HANDOFF.md` is still the spec they were built to — read it before
+  changing behaviour, and don't invent behaviour it already settles.
 - **Seed data is placeholder** except the 12 section names. It all lives in
   `supabase/seed.sql`, clearly marked.
 - **Scheduled sends are wired**: `/api/cron/tick` (secret-protected,
@@ -108,6 +110,21 @@ branch + PR (`gh pr create`), conventional commits.
   `src/core/notifications/targeting.test.ts`.
 - Migration filenames MUST start with digits or `supabase db push` silently
   skips them.
+- **PostgREST embeds need the foreign key named** whenever two tables are
+  joined by more than one path — `profiles!announcements_author_id_fkey(...)`,
+  not `profiles(...)`. And a `.select()` string must stay ONE literal:
+  supabase-js infers the row type from it, so concatenation types as
+  `unknown`. Both bite silently (the query errors, the page renders empty).
+- **Times are always Africa/Johannesburg**, formatted through
+  `src/core/ui/format.ts`. Anything depending on "now" (relative times) is
+  computed on the server and passed to client components as a string.
+  `seed.sql` sets the session timezone for the same reason.
+- **After a mutation**, actions call `revalidatePath` for other routes plus
+  `refresh()` from `next/cache` for the page you are on; client components
+  dispatch actions inside `startTransition` so the returned render is
+  applied. Awaiting an action outside one still works, just slower.
+- `npm run db:types` reads the **linked** (hosted) project;
+  `npm run db:types:local` reads a local `supabase start` stack.
 - `announcement_reads`: admins get counts via the
   `announcement_read_counts()` function only. Never add an admin SELECT
   policy on that table — it's a privacy guarantee, not an oversight.

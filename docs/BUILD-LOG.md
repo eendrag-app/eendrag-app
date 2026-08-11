@@ -156,13 +156,43 @@ stubbed" further down has NOT changed.
 - The tick is the **fourth** sanctioned use of the service-role client: it
   runs with no user for RLS to act as.
 
-### Known rough edge in the seed data
+### Verification and fixes from a from-zero run (PR: docs and verification)
 
-`supabase/seed.sql` builds its times from `date_trunc('day', now())`, which
-Postgres evaluates in UTC — so seeded events land two hours later than the
-wall-clock time the copy implies ("Huisvergadering 19:00" shows as 21:00).
-Harmless for placeholder data, worth fixing whenever the real calendar
-replaces it.
+Running `npx supabase start` + `db reset` against an **empty** database — the
+first thing a new maintainer does — found two things that had never been
+exercised, both now fixed and both verified from zero:
+
+- **Migrations aborted at 0400** with "function app_guard_sport_rep already
+  exists". 0101 was written after 0400 was applied to the hosted project, so
+  there it ran last; on a fresh database filename order puts it first.
+  Migrations **0102** and **0402** make both orderings converge (DECISIONS.md).
+- **The app could not read a single row** on a fresh database: the API roles
+  had no table grants, because the hosted project's tables were created under
+  more generous defaults. Migration **0103** writes the grants down. This also
+  unblocks the university-server path, where no Supabase defaults exist.
+- `supabase/seed.sql` now sets the session timezone, so seeded events land at
+  the times their own copy claims ("Huisvergadering 19:00" was showing as
+  21:00, because `date_trunc` truncates in the session's timezone and that was
+  UTC).
+
+Verified end to end on a fresh local stack: all migrations apply, the seed
+loads (12 sections, 8 sports, 5 announcements, 19 intersection matches), the
+API roles can read, and `npm run create-admin` succeeds — the exact failure
+0101 had originally been written for.
+
+### Also verified
+
+- **Playwright**: 24 smoke tests (12 × mobile + desktop) green — public
+  intersection pages signed out, the login redirect, the registry-driven tab
+  bar, an unknown ICS token 404ing, the cron route refusing anonymous
+  callers, and the signed-in feed, bell, sport and profile screens.
+- **Docker**: `docker compose --env-file .env.local build` then `up` serves
+  `/intersection` 200 signed out, redirects `/` to login, and 401s the cron
+  route.
+- **RLS**: 33/33 against the hosted project.
+- `CardTitle` renders an `<h3>` rather than a `<div>` so cards give screen
+  readers an outline; the three auth pages moved their `<h1>` above the card
+  to keep heading order sane.
 
 ## 2026-08-11 — Phase one
 
