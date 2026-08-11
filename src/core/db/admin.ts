@@ -7,6 +7,10 @@ import type { Database } from "./database.types";
 // Legitimate uses (the only current ones):
 //   - the notification pipeline writing rows for many recipients
 //   - src/core/calendar mirroring module fixtures into the events table
+//   - the ICS calendar feed (src/core/calendar/ics-feed.ts): a calendar app
+//     fetching /api/calendar/<token>.ics has no session for RLS to act as,
+//     and the token in the URL is the credential. The query there applies the
+//     visibility rule by hand. See docs/DECISIONS.md (2026-08-11).
 // Everything user-initiated should use the server client (server.ts) so RLS
 // stays the enforcement point. If you find yourself reaching for this in a
 // module, stop and check whether a policy is missing instead.

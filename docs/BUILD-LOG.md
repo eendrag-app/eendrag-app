@@ -25,6 +25,19 @@ stubbed" further down has NOT changed.
   (always Africa/Johannesburg, always server-side), calendar category
   colours, section badge/dot, empty state.
 
+### Profile (PR: profile module)
+
+- **Real** — `/profile`: details (name, section, room, sports played),
+  notification switches built from the registry, quiet hours, the personal
+  ICS link with copy + regenerate, the admin-tools list built from every
+  module's `adminPanels`, sign out.
+- **Real** — `/profile/members` (admin): search, role changes, and
+  activate/deactivate. Saves as you change it.
+- **Real** — the ICS feed itself: `/api/calendar/<calendar_token>.ics`,
+  hand-rolled VCALENDAR text in `src/core/calendar/ics.ts` (unit-tested) fed
+  by `ics-feed.ts`. Verified importing into a calendar client by URL.
+- No schema changes: every table and policy this needs already existed.
+
 ## 2026-08-11 — Phase one
 
 ### Exists and works (verified)
