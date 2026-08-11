@@ -199,10 +199,12 @@ DECISIONS.md:
   next morning** until either the plan is upgraded or an external scheduler
   hits `/api/cron/tick?secret=…` every five minutes.
 
-Also outstanding: the Hobby plan cannot connect a private repository owned by
-an organisation, so **merging to `main` does not deploy** — deploys are
-`npx vercel --prod` from a clone for now. Three ways to fix that are in
-OPERATIONS.md → Deploy.
+Both Hobby-plan limits were then closed by **making the repository public**
+(DECISIONS.md): Vercel's Git integration now deploys `main` on merge, and
+`.github/workflows/cron-tick.yml` calls the tick every five minutes — free,
+because Actions minutes are unlimited on public repositories. Vercel's daily
+cron stays as a backstop. Preview deploys are deliberately left without
+environment variables, since anyone can now open a pull request.
 
 ### Also verified
 

@@ -165,6 +165,32 @@ what the Dockerfile copies, and the Docker path is the portability guarantee —
 so the flag stays, conditioned on `VERCEL`, which Vercel sets in every build.
 Both paths verified after the change.
 
+## 2026-08-11 — The repository is public, and that is what pays for the hosting
+
+**Decision:** `eendrag-app/eendrag-app` is a public repository. Vercel's Git
+integration deploys `main`, and a GitHub Actions workflow calls the cron tick
+every five minutes.
+
+**Alternatives:** Vercel Pro (~$20/month) to connect a private org repo;
+deploying from GitHub Actions with a Vercel token and paying an external
+scheduler's signup cost.
+
+**Why:** Vercel's Hobby plan cannot connect a private repository owned by an
+organisation, and its crons are capped at once a day. Going public fixes both
+for nothing and adds no machinery — no tokens to rotate, no extra accounts to
+hand over, and GitHub Actions minutes are unlimited on public repositories,
+which is what makes a five-minute tick free. Against a residence committee
+that turns over every year, "no recurring bill and no extra credentials" beat
+a subscription that silently degrades the app when a card expires. Checked
+before publishing: `.env*` is gitignored, the whole history was scanned for
+key-shaped strings, and no res content is in the repo — it all lives in
+Supabase.
+
+**Consequence, accepted:** anyone can open a pull request, so the Preview
+environment is deliberately left without environment variables — a preview
+build that could read the service-role key is a preview build that could print
+it. Previews render, but cannot reach the database.
+
 ## 2026-08-11 — The cron runs daily, because the plan says so
 
 **Decision:** `vercel.json` schedules `/api/cron/tick` at `0 6 * * *` rather

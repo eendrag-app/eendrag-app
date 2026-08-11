@@ -1,0 +1,57 @@
+# Calls /api/cron/tick every five minutes, which is what publishes scheduled
+# announcements at their time and sends day-of reminders.
+#
+# WHY THIS EXISTS: Vercel's own cron (vercel.json) is capped at once a day on
+# the Hobby plan, so on its own a post scheduled for 14:00 would go out at
+# 06:00 the next morning. This workflow restores the intended behaviour for
+# free. The daily Vercel run stays as a backstop — the tick is idempotent, so
+# both firing is harmless.
+#
+# THINGS TO KNOW
+#
+#   * GitHub Actions minutes are free and unlimited on PUBLIC repositories.
+#     Every five minutes is ~8,600 runs a month, which would exhaust a private
+#     repository's free allowance — if this repo ever goes private again,
+#     delete this workflow and use an external scheduler instead (see
+#     docs/OPERATIONS.md → Scheduled work).
+#   * GitHub runs scheduled workflows on a best-effort basis and they are
+#     often a few minutes late. That is fine for announcements; it would not
+#     be fine for anything to the second.
+#   * GitHub DISABLES scheduled workflows after 60 days with no repository
+#     activity, and emails the admins when it does. Over a quiet December that
+#     can happen — re-enable it from the Actions tab.
+#   * A non-2xx answer fails the job, so a broken tick shows up as a failed
+#     workflow email rather than silence.
+name: Cron tick
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  # Lets you run it by hand from the Actions tab to test it.
+  workflow_dispatch:
+
+# Never pile up: if a run is somehow still going, skip rather than queue.
+concurrency:
+  group: cron-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the tick
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # The production URL. Change it here if the app ever moves.
+          APP_URL: https://eendrag-app.vercel.app
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET repository secret is not set — see docs/OPERATIONS.md"
+            exit 1
+          fi
+          # Sent as a header rather than ?secret= so it never lands in a log
+          # or a proxy's URL history.
+          curl -fsS --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/tick"
