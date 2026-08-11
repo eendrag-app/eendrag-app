@@ -152,6 +152,35 @@ migrations, which the CLI treats as out-of-order and refuses by default.
 `--include-all` applies every pending file; fresh databases still run in
 plain filename order. Trade-off documented in supabase/migrations/README.md.
 
+## 2026-08-11 — `output: "standalone"` is asked for only off Vercel
+
+**Decision:** `next.config.ts` sets `output: process.env.VERCEL ? undefined :
+"standalone"`.
+
+**Why:** Phase one set it unconditionally, with a comment saying "Vercel
+ignores it". Vercel does not ignore it: the first real deploy failed with
+`ENOENT: .next/next-server.js.nft.json`, because Vercel runs its own file
+tracing and standalone output collides with it. Standalone is still exactly
+what the Dockerfile copies, and the Docker path is the portability guarantee —
+so the flag stays, conditioned on `VERCEL`, which Vercel sets in every build.
+Both paths verified after the change.
+
+## 2026-08-11 — The cron runs daily, because the plan says so
+
+**Decision:** `vercel.json` schedules `/api/cron/tick` at `0 6 * * *` rather
+than the intended `*/5 * * * *`.
+
+**Alternatives:** upgrade to Vercel Pro; point an external scheduler at the
+route.
+
+**Why:** The Hobby plan refuses more than one cron run a day — the deploy
+fails outright, it is not silently downgraded. Daily is the schedule that
+deploys. The cost is real and worth naming: **a post scheduled for 14:00 goes
+out at 06:00 the next morning.** Because the tick is idempotent and
+secret-protected rather than Vercel-specific, either alternative restores
+five-minute behaviour without touching code — an external scheduler hitting
+`?secret=` costs nothing. Both are written up in OPERATIONS.md → Deploy.
+
 ## 2026-08-11 — Grants are written down, not inherited (0103)
 
 **Decision:** `0103_core_grants.sql` grants `select, insert, update, delete`

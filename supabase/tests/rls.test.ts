@@ -70,6 +70,9 @@ let rep: TestUser; // rep of Hockey
 let hkAdmin: TestUser;
 let hockey: string;
 let squash: string;
+// The rep tests edit hockey's venue to prove they may; this suite runs against
+// the shared pilot database, so remember the real value and put it back.
+let hockeyVenue: string;
 const anon = createClient(url, anonKey, { auth: { persistSession: false } });
 
 beforeAll(async () => {
@@ -93,10 +96,20 @@ beforeAll(async () => {
     .eq("id", rep.id);
   await admin.from("profiles").update({ role: "admin" }).eq("id", hkAdmin.id);
   await admin.from("sports").update({ rep_id: rep.id }).eq("id", hockey);
+
+  const { data: hockeyRow } = await admin
+    .from("sports")
+    .select("venue")
+    .eq("id", hockey)
+    .single();
+  hockeyVenue = hockeyRow?.venue ?? "";
 });
 
 afterAll(async () => {
-  await admin.from("sports").update({ rep_id: null }).eq("id", hockey);
+  await admin
+    .from("sports")
+    .update({ rep_id: null, venue: hockeyVenue })
+    .eq("id", hockey);
   for (const id of createdUserIds) {
     await admin.auth.admin.deleteUser(id);
   }

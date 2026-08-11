@@ -10,17 +10,63 @@ document's credentials. **Nothing secret is in the repo.**
 
 ## Deploy
 
-Hosting is **Vercel** connected to this GitHub repo:
+**Live at https://eendrag-app.vercel.app** (Vercel project `eendrag-app`,
+account `eendragapp-9642`, first deployed 2026-08-11).
 
-- Merge to `main` → production deploy, automatically.
-- Every PR → preview deploy with its own URL, automatically.
-- Environment variables live in Vercel → Project → Settings → Environment
-  Variables. They mirror `.env.example`. Changing one requires a redeploy
-  (Vercel prompts you).
+### How a deploy happens today
 
-First-time Vercel setup (only if the project link ever breaks): import the
-GitHub repo in the Vercel dashboard, framework preset "Next.js", add the
-env vars from `.env.example` with production values, done.
+The account is on Vercel's **Hobby** plan, which cannot connect a *private
+repository owned by an organisation* — and this repo is exactly that. So there
+is **no automatic deploy on merge yet**. Deploys are run by hand from a clone:
+
+```bash
+npx vercel login          # once per machine
+npx vercel link           # once per machine — pick the eendrag-app project
+npx vercel --prod         # deploy what is in your working directory
+```
+
+`npx vercel ls` lists recent deployments; `npx vercel rollback` and the
+dashboard's "Promote to Production" both undo one.
+
+> **Deploying uploads your working directory, not `main`.** Check out `main`
+> and pull before running it, or you will publish whatever you were mid-way
+> through.
+
+### Making it automatic (recommended, pick one)
+
+1. **Upgrade to Vercel Pro.** Connects the private org repo, gives merge →
+   deploy, PR previews, and 5-minute crons (below). Costs money.
+2. **Make the GitHub repo public.** Hobby connects public repos fine. Nothing
+   secret is in the repo, but check with the HK first — it publishes the res's
+   code, not its data.
+3. **Deploy from GitHub Actions** with a Vercel token in repository secrets
+   (`vercel deploy --prod --token=$VERCEL_TOKEN`). Works on Hobby and keeps
+   the repo private; costs a bit of workflow YAML.
+
+### Environment variables
+
+Vercel → Project → Settings → Environment Variables, mirroring
+`.env.example`. Currently set for **production**:
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `AUTH_MODE`, `REQUIRE_SUN_EMAIL`,
+`NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`. Changing one needs a redeploy.
+
+Add them from the CLI without pasting secrets into a shell history:
+
+```bash
+printf '%s' "$VALUE" | npx vercel env add NAME production
+```
+
+`printf` rather than `echo`: a trailing newline in `CRON_SECRET` makes the
+deploy fail, because Vercel sends it as an HTTP header.
+
+### One Next.js gotcha
+
+`next.config.ts` only asks for `output: "standalone"` when **not** building on
+Vercel. Standalone output is what the Dockerfile copies, but Vercel runs its
+own file tracing and the build dies with
+`ENOENT: .next/next-server.js.nft.json` if standalone is on. Both paths are
+verified; don't "simplify" that conditional away.
 
 ### Database migrations on production
 
@@ -151,11 +197,20 @@ not something to leave lying around. The announcement compose screen reads the
 same variable and warns when scheduling is not wired up, so a missing secret
 shows up as a visible warning rather than posts that silently never go out.
 
-**On Vercel** (already configured): `vercel.json` runs it every five minutes,
-and Vercel sends `Authorization: Bearer $CRON_SECRET` automatically. Set
-`CRON_SECRET` in Project → Settings → Environment Variables. Note that the
-Hobby plan limits crons to once a day — on Hobby, change the schedule to
-`0 6 * * *` and accept that scheduled posts go out in that morning batch.
+**On Vercel** (configured): `vercel.json` runs it, and Vercel sends
+`Authorization: Bearer $CRON_SECRET` automatically.
+
+> **The schedule is `0 6 * * *` — once a day at 06:00 — because the Hobby plan
+> refuses anything more frequent** (the deploy fails outright with "Hobby
+> accounts are limited to daily cron jobs"). That means **a post scheduled for
+> 14:00 goes out at 06:00 the next morning**, and day-of reminders arrive in
+> that same batch. Two ways to get the intended five-minute behaviour back:
+>
+> - upgrade to Pro and change the schedule to `*/5 * * * *`; or
+> - leave Vercel's daily cron as a backstop and point a free external
+>   scheduler (cron-job.org, an Uptime-Robot monitor, a machine's crontab) at
+>   the URL below every five minutes. The tick is idempotent, so both firing
+>   is harmless.
 
 **Anywhere else** (university server, a laptop, cron-job.org):
 
