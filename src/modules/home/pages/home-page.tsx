@@ -3,12 +3,19 @@ import { Megaphone, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { listEventsBetween } from "@/core/calendar";
 import { createClient } from "@/core/db/server";
 import { requireProfile } from "@/core/permissions";
 import { EmptyState } from "@/core/ui/empty-state";
-import { relativeTime } from "@/core/ui/format";
+import { addMonths, dayKey, formatTime, relativeTime, startOfMonth } from "@/core/ui/format";
 import { AnnouncementCard } from "../components/announcement-card";
+import { CalendarView } from "../components/calendar-view";
 import { FEED_PAGE_SIZE, authorName, partitionFeed } from "../lib/announcements";
+import {
+  WINDOW_MONTHS_AHEAD,
+  WINDOW_MONTHS_BACK,
+  type CalendarEvent,
+} from "../lib/calendar";
 
 // The feed: the reason people open the app. RLS already limits what comes
 // back to published posts that are res-wide or aimed at the reader's own
@@ -79,6 +86,32 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   );
 
   const now = new Date();
+
+  // The calendar beside/below the feed. One query for a whole academic year's
+  // window, then the component pages through months in the browser — flicking
+  // between months should never wait on the network.
+  const windowStart = startOfMonth(addMonths(now, -WINDOW_MONTHS_BACK));
+  const windowEnd = addMonths(now, WINDOW_MONTHS_AHEAD);
+  const [eventRows, sections] = await Promise.all([
+    listEventsBetween(windowStart, windowEnd),
+    db.from("sections").select("id, name, color"),
+  ]);
+  const sectionById = new Map((sections.data ?? []).map((s) => [s.id, s]));
+  const calendarEvents: CalendarEvent[] = eventRows.map((e) => {
+    const section = e.section_id ? sectionById.get(e.section_id) : undefined;
+    return {
+      id: e.id,
+      title: e.title,
+      category: e.category,
+      location: e.location,
+      dayKey: dayKey(e.starts_at),
+      timeLabel: formatTime(e.starts_at),
+      sectionName: section?.name ?? null,
+      sectionColor: section?.color ?? null,
+      sourceModule: e.source_module,
+    };
+  });
+
   const { pinned, rest } = partitionFeed(
     items.map((a) => ({ ...a, isUrgent: a.is_urgent, publishedAt: a.published_at })),
     now,
@@ -139,43 +172,56 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         </Link>
       )}
 
-      {items.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title={query ? "Nothing matches that" : "No announcements yet"}
-          description={
-            query
-              ? "Try a different word — search looks at titles and the body of every post."
-              : "When the HK posts something it lands here, and in your notifications."
-          }
-        />
-      ) : (
+      {/* Feed first, calendar under it on a phone; side by side once there is
+          room for both. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-6">
         <div className="space-y-4">
-          {pinned.length > 0 && (
+          {items.length === 0 ? (
+            <EmptyState
+              icon={Megaphone}
+              title={query ? "Nothing matches that" : "No announcements yet"}
+              description={
+                query
+                  ? "Try a different word — search looks at titles and the body of every post."
+                  : "When the HK posts something it lands here, and in your notifications."
+              }
+            />
+          ) : (
             <div className="space-y-4">
-              {pinned.map((a) => card(a, true))}
-              {rest.length > 0 && <Separator />}
+              {pinned.length > 0 && (
+                <div className="space-y-4">
+                  {pinned.map((a) => card(a, true))}
+                  {rest.length > 0 && <Separator />}
+                </div>
+              )}
+              {rest.map((a) => card(a, false))}
             </div>
           )}
-          {rest.map((a) => card(a, false))}
-        </div>
-      )}
 
-      {olderHref && (
-        <div className="pt-2">
-          {/* nativeButton={false}: this renders an <a>, and Base UI wants to
-              be told so it drops the native-button semantics. */}
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-11 w-full"
-            nativeButton={false}
-            render={<Link href={olderHref} />}
-          >
-            Older announcements
-          </Button>
+          {olderHref && (
+            /* nativeButton={false}: this renders an <a>, and Base UI wants to
+               be told so it drops the native-button semantics. */
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11 w-full"
+              nativeButton={false}
+              render={<Link href={olderHref} />}
+            >
+              Older announcements
+            </Button>
+          )}
         </div>
-      )}
+
+        <div className="mt-4 lg:sticky lg:top-18 lg:mt-0">
+          <CalendarView
+            events={calendarEvents}
+            todayKey={dayKey(now)}
+            minMonthKey={dayKey(windowStart).slice(0, 8) + "01"}
+            maxMonthKey={dayKey(windowEnd).slice(0, 8) + "01"}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -63,6 +63,28 @@ stubbed" further down has NOT changed.
   block for the `fixed` tab bar, which pinned the bar inside the header on
   phones.
 
+### Calendar (PR: calendar)
+
+- **Real** — the shared calendar on `/`, under the feed on a phone and beside
+  it from `lg` up: month grid with colour-coded dots, tap a day for its
+  events, an agenda toggle, and category filter chips. One query loads a
+  window of a month back to a year ahead; paging months costs nothing.
+- **Real** — `/admin/calendar` (+ `/new`, `/[id]`): create, edit and delete
+  res-wide, section and social events, with a calendar notification on
+  creation and on a real change (time or place). Module-mirrored rows (sport
+  fixtures, intersection games) are listed but read-only, labelled with the
+  module that owns them — editing them here would be undone by the next
+  mirror.
+- The ICS feed (shipped with Profile) carries all of it into phone calendars.
+
+### Known rough edge in the seed data
+
+`supabase/seed.sql` builds its times from `date_trunc('day', now())`, which
+Postgres evaluates in UTC — so seeded events land two hours later than the
+wall-clock time the copy implies ("Huisvergadering 19:00" shows as 21:00).
+Harmless for placeholder data, worth fixing whenever the real calendar
+replaces it.
+
 ## 2026-08-11 — Phase one
 
 ### Exists and works (verified)
