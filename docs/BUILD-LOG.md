@@ -134,6 +134,28 @@ stubbed" further down has NOT changed.
   final), entering a result moved the event to "in progress" and locked the
   groups. The test draw was removed afterwards.
 
+### Scheduled work (PR: cron tick)
+
+- **Real** — `GET /api/cron/tick`: publishes announcements whose scheduled
+  time has passed (notifying exactly as if the HK had pressed Publish), and
+  sends day-of reminders for calendar events in the next 24 hours and for
+  intersection fixtures to the two sections playing.
+- **Idempotent by construction**: publishing flips `status` and only updates
+  rows still marked `scheduled`; reminders ask the notifications table
+  whether one has already gone out (`source_ref = "reminder:<id>"`), so no
+  new column and nothing to reset.
+- **Protected by `CRON_SECRET`** and refuses to run (503) when it is not
+  set — a fail-closed default for an endpoint that notifies 280 people. The
+  compose screen reads the same variable and warns when scheduling is not
+  wired.
+- `vercel.json` runs it every five minutes; plain cron + curl works anywhere
+  else. Full instructions in docs/OPERATIONS.md → Scheduled work.
+- Verified locally end to end: 401 without the secret, publishes a due post
+  and notifies once, second tick a no-op; reminder for an event two hours
+  out, second tick a no-op.
+- The tick is the **fourth** sanctioned use of the service-role client: it
+  runs with no user for RLS to act as.
+
 ### Known rough edge in the seed data
 
 `supabase/seed.sql` builds its times from `date_trunc('day', now())`, which

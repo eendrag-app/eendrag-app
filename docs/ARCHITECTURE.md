@@ -60,11 +60,12 @@ Postgres helper functions (`app_is_admin()`, `app_section_id()`,
 `app_is_rep_of(uuid)`) are `security definer` so policies stay one-liners.
 
 The service-role client (`src/core/db/admin.ts`) bypasses RLS and is
-restricted to three uses: the notification pipeline fan-out, calendar
-mirroring, and the ICS calendar feed (a subscribing calendar app has no
-session, and the token in the URL is the credential — `ics-feed.ts` applies
-the visibility rule by hand). Anything user-initiated uses the session-scoped
-server client.
+restricted to four uses: the notification pipeline fan-out, calendar
+mirroring, the ICS calendar feed (a subscribing calendar app has no session,
+and the token in the URL is the credential — `ics-feed.ts` applies the
+visibility rule by hand), and the cron tick (`/api/cron/tick` runs with no
+user; it is protected by `CRON_SECRET`). Anything user-initiated uses the
+session-scoped server client.
 
 ## Auth (deliberately stubbed — and how to un-stub it)
 

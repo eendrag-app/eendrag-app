@@ -133,9 +133,41 @@ What is Supabase-specific and would need attention in a bare-Postgres world
 uploads), and the `auth.users` trigger in `0100_core_init.sql`. Everything
 else is plain Postgres.
 
-## Scheduled work (when phase two wires it)
+## Scheduled work
 
-Scheduled announcements and event reminders need a periodic tick. On
-Vercel: a Vercel Cron entry hitting an API route. On a university server:
-plain cron + curl. The routes and logic are specced in docs/HANDOFF.md;
-nothing runs on a schedule yet (docs/BUILD-LOG.md).
+One endpoint does all of it: **`GET /api/cron/tick`**. Every tick
+
+1. publishes announcements whose scheduled time has passed, and notifies as
+   if the HK had pressed Publish;
+2. sends a day-of reminder for calendar events starting in the next 24 hours,
+   and for intersection fixtures to the two sections playing.
+
+Everything it does is idempotent — running it twice, late, or by hand sends
+nothing twice — so a missed hour simply catches up on the next tick.
+
+**It is protected by `CRON_SECRET`, and refuses to run (503) if that variable
+is not set.** That is deliberate: an open endpoint that notifies 280 people is
+not something to leave lying around. The announcement compose screen reads the
+same variable and warns when scheduling is not wired up, so a missing secret
+shows up as a visible warning rather than posts that silently never go out.
+
+**On Vercel** (already configured): `vercel.json` runs it every five minutes,
+and Vercel sends `Authorization: Bearer $CRON_SECRET` automatically. Set
+`CRON_SECRET` in Project → Settings → Environment Variables. Note that the
+Hobby plan limits crons to once a day — on Hobby, change the schedule to
+`0 6 * * *` and accept that scheduled posts go out in that morning batch.
+
+**Anywhere else** (university server, a laptop, cron-job.org):
+
+```bash
+*/5 * * * * curl -fsS "https://<host>/api/cron/tick?secret=$CRON_SECRET" > /dev/null
+```
+
+**To check it is alive:** run that curl by hand. It answers with what it did:
+
+```json
+{ "ok": true, "at": "2026-08-11T18:05:00.000Z", "published": 0, "reminders": 2 }
+```
+
+A 401 means the secret does not match; a 503 means it is not configured.
+Failures are logged with `[cron]`, which is what to grep for in Vercel logs.
