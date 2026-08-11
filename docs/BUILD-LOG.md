@@ -4,6 +4,27 @@ What exists, what's assumed, what's stubbed, what's placeholder. Update this
 whenever any of those change — it's the honest inventory the next maintainer
 trusts.
 
+## 2026-08-11 — Phase two
+
+Phase two replaces the four placeholder module pages with real UIs. Each
+bullet below lands with its own PR; anything still listed under "Deliberately
+stubbed" further down has NOT changed.
+
+### The app shell (PR: app shell)
+
+- **Real** — sticky header (wordmark, registry-derived nav on desktop, bell,
+  appearance menu) over the phone-width column; on phones the nav is pinned
+  to the bottom of the screen. One `<nav aria-label="Main">` element, two
+  layouts.
+- **Real** — the notification bell: unread badge, bottom sheet listing the
+  latest 20, tap to mark read and follow the link, "mark all read". It polls
+  a server action every 60 seconds (no realtime subscription — boring wins).
+- **Real** — dark mode via `next-themes` (class strategy, defaults to the
+  phone's setting) with an appearance menu in the header.
+- **Real** — shared module-free UI in `src/core/ui/`: date/time formatting
+  (always Africa/Johannesburg, always server-side), calendar category
+  colours, section badge/dot, empty state.
+
 ## 2026-08-11 — Phase one
 
 ### Exists and works (verified)
