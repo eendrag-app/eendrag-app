@@ -1,0 +1,75 @@
+# Build log
+
+What exists, what's assumed, what's stubbed, what's placeholder. Update this
+whenever any of those change — it's the honest inventory the next maintainer
+trusts.
+
+## 2026-08-11 — Phase one
+
+### Exists and works (verified)
+
+- Next.js 16 scaffold; `npm run dev`, `check` (typecheck+lint+test), and the
+  production build all green. 44 unit tests passing.
+- Module system: `AppModule` contract, registry, registry-derived tab bar,
+  `_template` module registered and routable at `/template`, four feature
+  modules registered as placeholder pages. ESLint boundary rule
+  (module→module and core→module imports are errors) verified against
+  planted violations.
+- All migrations (0100–0500) and `seed.sql` written; RLS with explicit
+  policies on every table.
+- `src/core` complete: db clients, auth provider (open mode) + middleware
+  gating from the registry, permissions helpers, calendar service,
+  notification pipeline with targeting + quiet hours, channels.
+- Intersection tournament logic ported from the old app with parity tests.
+- Minimal login/signup/onboarding pages (functional, unstyled-ish).
+- Dockerfile, docker-compose.yml, CI workflow, Playwright smoke tests.
+- Docs: CLAUDE.md, README, ARCHITECTURE, ADDING-A-MODULE, ADMIN-GUIDE,
+  OPERATIONS, DECISIONS, HANDOFF, this file.
+
+### Written but not yet executed against a live database
+
+Blocked on two one-time interactive steps on the dev machine (Supabase CLI
+browser login; Docker Desktop's first-run license dialog + WSL setup):
+
+- Applying migrations + seed to the hosted Supabase project
+  (`supabase link` + `npm run db:push`), and to a local `supabase start`.
+- `npm run test:rls` (needs any live database).
+- `docker build` verification of the Dockerfile.
+- Regenerating `src/core/db/database.types.ts` — currently hand-written to
+  match the migrations; replace with `npm run db:types` output at first
+  opportunity.
+- Playwright smoke run (needs `.env.local`).
+
+### Deliberately stubbed (by design, not debt)
+
+- **Auth**: open signup, no email confirmation, no domain restriction.
+  `AUTH_MODE` / `REQUIRE_SUN_EMAIL` flags + empty `verified_emails` table
+  are ready for the magic-link switch (ARCHITECTURE → Auth).
+- **Web push**: `webPushChannel` logs instead of sending. Interface final;
+  implementation steps documented in the stub (v1.1).
+- **Scheduled sends**: `announcements.scheduled_for` and reminder triggers
+  have schema + spec but no cron wiring (HANDOFF → Known gaps).
+- **Feature module UIs**: placeholder pages only — phase two builds them
+  from HANDOFF.
+
+### Placeholder data (all in `supabase/seed.sql`, trivially replaceable)
+
+- Sports list (8), practice times, venues, one placeholder coach name.
+- Announcements (4 + 1 scheduled), calendar events (3 manual + 3 mirrored).
+- Sport fixtures (3) and results (2).
+- Intersection: completed "Touch Rugby Day" with a full played-out bracket
+  (Katstraat champion), upcoming "5-a-side Soccer" with no draw, 24
+  placeholder players (2 per section) with rosters.
+- Real: the 12 section names. Section colours are my choices — HK should
+  confirm them (`sections.color`).
+- No sport reps assigned (reps must be real signed-up users; assign via
+  Profile → Admin or `scripts/create-admin.mjs` pattern).
+
+### Assumptions phase two should know
+
+- Section colours in `sections.color` are invented placeholders.
+- `profiles.email` duplicates auth email for convenience; res-internal
+  visibility of names/sections/emails is accepted (280 people who live
+  together).
+- The old Intersection app stays live on Render until the module reaches
+  parity; retire it then (its README documents its own ops).
