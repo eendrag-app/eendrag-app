@@ -152,6 +152,41 @@ migrations, which the CLI treats as out-of-order and refuses by default.
 `--include-all` applies every pending file; fresh databases still run in
 plain filename order. Trade-off documented in supabase/migrations/README.md.
 
+## 2026-08-11 — The ICS feed is the third sanctioned service-role use
+
+**Decision:** `src/core/calendar/ics-feed.ts` reads profiles and events with
+the admin client. The allowlist in `src/core/db/admin.ts` grows from two
+entries to three.
+
+**Alternatives:** an RLS policy letting `anon` select events (opens the whole
+calendar to the internet); a signed-in-only feed (breaks the point — Google
+Calendar fetches the URL with no cookies).
+
+**Why:** A calendar client polling `/api/calendar/<token>.ics` has no session,
+so RLS has nobody to act as. The token *is* the credential, which is why
+Profile can regenerate it and why the route 404s on an unknown token or a
+deactivated account. The query applies the visibility rule the policy would
+have applied — res-wide events plus the token owner's own section — and it is
+the only query in the file. Phase two, not phase one, but recorded here
+because it changes a rule phase one wrote down.
+
+## 2026-08-11 — Section-only mode is declared by the profile module
+
+**Decision:** `src/modules/profile/module.ts` declares
+`notificationCategories: ["section"]`, even though the profile module emits no
+notifications.
+
+**Alternatives:** hardcode the `section` switch into the settings page; add
+"section" to every module's list.
+
+**Why:** The settings page is built from `allNotificationCategories()`, and no
+feature module *emits* the `section` category — it is a filter over all the
+others (docs/DECISIONS.md, "Section-only mode is an opt-in preference"). Its
+switch still has to appear. Declaring it on the module that owns the settings
+UI keeps the page registry-driven with no special cases, at the cost of
+stretching `notificationCategories` from "what I emit" to "what I contribute
+to the settings screen". The comment in module.ts says so out loud.
+
 ## 2026-08-11 — Announcement read counts go through a definer function
 
 **Decision:** Admins get open counts from the
