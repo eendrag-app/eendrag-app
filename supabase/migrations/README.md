@@ -17,7 +17,7 @@ together and new modules never collide:
 | 0200–0299 | core calendar (0200 events, 0201 upsertable source index) |
 | 0300–0399 | home (announcements) |
 | 0400–0499 | sport — 0400 init, 0401 rep system announcements, 0402 re-applies the guard from 0101 (see 0102) |
-| 0500–0599 | intersection |
+| 0500–0599 | intersection — 0500 init, 0501 drops players and rosters |
 | 0600–0699 | profile |
 | 0700+ | next module — claim the next free block in this table |
 

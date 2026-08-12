@@ -28,7 +28,6 @@ function revalidateEvent(eventId: string) {
   revalidatePath("/intersection");
   revalidatePath(`/intersection/events/${eventId}`);
   revalidatePath(`/intersection/admin/${eventId}`);
-  revalidatePath("/intersection/players");
   revalidatePath("/");
   // revalidatePath marks those routes stale for the next request; refresh()
   // re-renders the page the admin is looking at right now, so the guards on
@@ -151,7 +150,7 @@ export async function deleteEvent(eventId: string) {
   const { error } = await db.from("intersection_events").delete().eq("id", parsed.data);
   if (error) return { ok: false as const, error: "Could not delete the event" };
 
-  // Groups, matches, rosters cascade in the database; the calendar mirrors do
+  // Groups and matches cascade in the database; the calendar mirrors do
   // not, so they are cleaned up here.
   for (const match of event?.matches ?? []) {
     await removeModuleEvent(MODULE, match.id);
@@ -528,7 +527,7 @@ export async function setMatchTime(matchId: string, scheduledAt: string) {
   return { ok: true as const };
 }
 
-// --- settings, players, rosters ---------------------------------------------
+// --- settings ---------------------------------------------------------------
 
 const pointsInput = z.object({
   champion: z.coerce.number().int().min(0).max(999),
@@ -564,76 +563,5 @@ export async function savePoints(formData: FormData) {
 
   revalidatePath("/intersection");
   revalidatePath("/intersection/admin");
-  return { ok: true as const };
-}
-
-const playerInput = z.object({
-  name: z.string().trim().min(2, "Enter the player's name").max(120),
-  sectionId: z.uuid("Pick a section"),
-  profileId: z.uuid().nullable(),
-});
-
-export async function createPlayer(formData: FormData) {
-  await requireRole("admin");
-  const profileId = String(formData.get("profileId") ?? "");
-  const parsed = playerInput.safeParse({
-    name: formData.get("name"),
-    sectionId: formData.get("sectionId"),
-    profileId: profileId === "" ? null : profileId,
-  });
-  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
-
-  const db = await createClient();
-  const { error } = await db.from("intersection_players").insert({
-    name: parsed.data.name,
-    section_id: parsed.data.sectionId,
-    profile_id: parsed.data.profileId,
-  });
-  if (error) return { ok: false as const, error: "Could not add the player" };
-
-  revalidatePath("/intersection/admin");
-  revalidatePath("/intersection/players");
-  return { ok: true as const };
-}
-
-export async function deletePlayer(playerId: string) {
-  await requireRole("admin");
-  const parsed = z.uuid().safeParse(playerId);
-  if (!parsed.success) return { ok: false as const, error: "Unknown player" };
-
-  const db = await createClient();
-  const { error } = await db.from("intersection_players").delete().eq("id", parsed.data);
-  if (error) return { ok: false as const, error: "Could not remove the player" };
-
-  revalidatePath("/intersection/admin");
-  revalidatePath("/intersection/players");
-  return { ok: true as const };
-}
-
-/** Who is playing in this event — the roster is what player stats count from. */
-export async function toggleRoster(eventId: string, playerId: string, on: boolean) {
-  await requireRole("admin");
-  const parsed = z.object({ eventId: z.uuid(), playerId: z.uuid() }).safeParse({ eventId, playerId });
-  if (!parsed.success) return { ok: false as const, error: "Unknown player" };
-
-  const db = await createClient();
-  if (on) {
-    const { error } = await db
-      .from("intersection_rosters")
-      .upsert(
-        { event_id: parsed.data.eventId, player_id: parsed.data.playerId },
-        { onConflict: "event_id,player_id", ignoreDuplicates: true },
-      );
-    if (error) return { ok: false as const, error: "Could not add them to the roster" };
-  } else {
-    const { error } = await db
-      .from("intersection_rosters")
-      .delete()
-      .eq("event_id", parsed.data.eventId)
-      .eq("player_id", parsed.data.playerId);
-    if (error) return { ok: false as const, error: "Could not take them off the roster" };
-  }
-
-  revalidateEvent(parsed.data.eventId);
   return { ok: true as const };
 }

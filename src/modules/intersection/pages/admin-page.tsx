@@ -2,47 +2,21 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/core/db/server";
 import { requireRole } from "@/core/permissions";
 import { EmptyState } from "@/core/ui/empty-state";
 import { formatLongDate } from "@/core/ui/format";
 import { EventForm } from "../components/event-form";
-import type { SectionOption } from "../components/match-admin";
-import { PlayersAdmin, type AdminPlayer } from "../components/players-admin";
 import { PointsForm } from "../components/points-form";
-import { loadEvents, loadPoints, loadSections } from "../lib/load";
+import { loadEvents, loadPoints } from "../lib/load";
 
 export const metadata = { title: "Intersection admin" };
 
-// The intersection admin's front door: the events, the season's points, and
-// the player list the rosters draw from. Running a single event happens one
-// level down, at /intersection/admin/[id].
+// The intersection admin's front door: the events and the season's points.
+// Running a single event happens one level down, at /intersection/admin/[id].
 export default async function IntersectionAdminPage() {
   await requireRole("admin");
-  const db = await createClient();
 
-  const [events, sections, points, players, accounts] = await Promise.all([
-    loadEvents(),
-    loadSections(),
-    loadPoints(),
-    db
-      .from("intersection_players")
-      .select("id, name, section_id, profile_id")
-      .order("name"),
-    db
-      .from("profiles")
-      .select("id, full_name, email, section_id")
-      .eq("is_active", true)
-      .order("full_name"),
-  ]);
-
-  const sectionOptions: SectionOption[] = sections;
-  const playerRows: AdminPlayer[] = (players.data ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    sectionId: p.section_id,
-    linked: p.profile_id !== null,
-  }));
+  const [events, points] = await Promise.all([loadEvents(), loadPoints()]);
 
   return (
     <div className="space-y-4">
@@ -119,27 +93,6 @@ export default async function IntersectionAdminPage() {
         </CardHeader>
         <CardContent>
           <PointsForm values={points} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Players</CardTitle>
-          <CardDescription>
-            Everyone who might be on a roster. Linking a player to an account means their
-            name follows whatever they set in Profile.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PlayersAdmin
-            players={playerRows}
-            sections={sectionOptions}
-            accounts={(accounts.data ?? []).map((a) => ({
-              id: a.id,
-              label: a.full_name || a.email,
-              sectionId: a.section_id,
-            }))}
-          />
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Crown, Trophy, Users } from "lucide-react";
+import { ChevronRight, Crown, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProfile } from "@/core/permissions";
@@ -90,16 +90,7 @@ export default async function IntersectionPage() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Events</h2>
-        <Link
-          href="/intersection/players"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-        >
-          <Users className="size-4" aria-hidden />
-          Player stats
-        </Link>
-      </div>
+      <h2 className="text-lg font-semibold">Events</h2>
 
       {events.length === 0 ? (
         <EmptyState

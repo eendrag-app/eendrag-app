@@ -17,7 +17,7 @@ const intersectionModule: AppModule = {
     {
       id: "intersection-manage",
       title: "Intersection",
-      description: "Events, draws, results, rosters, leaderboard points",
+      description: "Events, draws, results, leaderboard points",
       href: "/intersection/admin",
       roles: ["admin"],
     },
