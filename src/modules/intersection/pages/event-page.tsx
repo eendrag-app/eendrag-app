@@ -4,7 +4,9 @@ import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
+import { getProfile } from "@/core/permissions";
 import { formatLongDate } from "@/core/ui/format";
+import { cn } from "@/lib/utils";
 import { MatchRow, MatchTime } from "../components/match-row";
 import { stageLabel } from "../lib/copy";
 import { loadEvent, loadSections } from "../lib/load";
@@ -22,8 +24,14 @@ const STAGE_HEADINGS: Record<Stage, string> = {
 // PUBLIC — this is the page that gets pasted into WhatsApp.
 export default async function EventPage({ params }: PageProps<"/intersection/events/[id]">) {
   const { id } = await params;
-  const [event, sections] = await Promise.all([loadEvent(id), loadSections()]);
+  // Signed out (which this page must work for) simply means no highlight.
+  const [event, sections, profile] = await Promise.all([
+    loadEvent(id),
+    loadSections(),
+    getProfile(),
+  ]);
   if (!event) notFound();
+  const mySectionId = profile?.section_id ?? null;
 
   const nameOf = (sectionId: string) =>
     sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
@@ -99,7 +107,10 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                       </thead>
                       <tbody>
                         {table.map((row) => (
-                          <tr key={row.sectionId}>
+                          <tr
+                            key={row.sectionId}
+                            className={cn(row.sectionId === mySectionId && "text-primary font-semibold")}
+                          >
                             <td className="py-1">{nameOf(row.sectionId)}</td>
                             <td className="text-right tabular-nums">{row.played}</td>
                             <td className="text-right tabular-nums">{row.won}</td>
@@ -134,7 +145,12 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                           </span>
                           <MatchTime scheduledAt={match.scheduledAt} />
                         </div>
-                        <MatchRow match={match} note={match.note} nameOf={nameOf} />
+                        <MatchRow
+                          match={match}
+                          note={match.note}
+                          nameOf={nameOf}
+                          mySectionId={mySectionId}
+                        />
                       </div>
                     );
                   })}

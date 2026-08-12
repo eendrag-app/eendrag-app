@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Mail, MapPin, Users } from "lucide-react";
+import { ChevronLeft, Mail, MapPin, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
@@ -99,6 +99,8 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
     score: r.score,
     whenLabel: relativeTime(r.played_at, now),
   }));
+  // The query is already newest-first, so the headline is simply the first.
+  const latest = recent[0];
 
   return (
     <div className="space-y-4">
@@ -116,6 +118,29 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
           <p className="text-muted-foreground text-sm">Not running at the moment.</p>
         )}
       </div>
+
+      {/* The most recent result, first. Opening a sport is usually "how did we
+          do?", and before this it meant scrolling past practice times, the
+          rep's card and every fixture to find out. The full list is still
+          below, and still includes this one — this is a headline, not a
+          different set of facts. */}
+      {latest && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="size-4" aria-hidden />
+              Latest result
+            </CardTitle>
+            <CardDescription>{latest.whenLabel}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <p className="text-lg font-semibold">{latest.summary}</p>
+            {latest.score && (
+              <p className="text-muted-foreground text-sm tabular-nums">{latest.score}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
