@@ -66,6 +66,37 @@ with its own PR.
 - **Still missing** — nothing is pushed to a phone yet. That is the next PR:
   VAPID keys, a `push_subscriptions` table, and the body of `webPushChannel`.
 
+### Web push is real (PR: web push)
+
+- **Real** — notifications reach a phone while the app is closed.
+  `webPushChannel` is no longer a stub: it sends through
+  `src/core/notifications/web-push.ts` to the endpoints in
+  **`push_subscriptions`** (migration 0105), and `public/sw.js` shows them.
+- **Real** — quiet hours survive the request that created them.
+  `notifications.deliver_at` / `pushed_at` (0105) hold the decision; the push
+  channel sends what is due now and the cron tick (`deliverDuePushes`) sends
+  the rest. Migration **0106** backfills every pre-existing row as delivered —
+  without it the first tick would have pushed weeks of old announcements to
+  280 phones at once.
+- **Real** — Profile → Notifications → "Notifications on this device": asks
+  permission, subscribes, stores the keys. It says why instead of failing when
+  it cannot work — iPhone not installed yet, permission blocked in site
+  settings, browser without push, or no VAPID key configured for the
+  deployment.
+- **Five new RLS tests** (38 total, green against the hosted project): a
+  subscription can only be created, read, and deleted by the person whose
+  device it is — **not by admins either**, because the endpoint and keys are a
+  capability to buzz that phone.
+- **Verified** — migrations 0105 and 0106 applied to the hosted project, types
+  regenerated. A real notification queued for the dev admin, `/api/cron/tick`
+  called: it picked the row up, attempted delivery, stamped `pushed_at`, and
+  logged the transport failure without throwing (best-effort, as designed).
+- **NOT verified end to end, and cannot be from a machine**: the send to a real
+  push service, and the notification appearing on a lock screen. Automated
+  browsers are refused registration by every push service. The steps to check
+  it on a real phone are in docs/OPERATIONS.md → Notifications on a phone, and
+  it needs the VAPID keys set in Vercel first.
+
 ## 2026-08-11 — Phase two
 
 Phase two replaces the four placeholder module pages with real UIs. Each

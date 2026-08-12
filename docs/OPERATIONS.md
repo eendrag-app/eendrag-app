@@ -227,6 +227,68 @@ returns 200 with a JavaScript content type, and the icons in the manifest all
 resolve. Chrome's DevTools → Application → Manifest lists whatever it is
 unhappy about.
 
+## Notifications on a phone (web push)
+
+Every notification is a row in `notifications` — that is what the bell shows,
+and it has always worked. **Push** is the extra step that makes a phone buzz
+while the app is closed. Three things have to be true, and if any one of them
+is missing the bell carries on working and nothing else does:
+
+**1. The server has VAPID keys.** `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY`,
+`WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_CONTACT` — see `.env.example`. Generate a
+pair with `npx web-push generate-vapid-keys`, put them in `.env.local` and in
+**Vercel → Settings → Environment Variables (Production)**, then redeploy.
+Without them Profile says push is not switched on for this deployment and
+`webPushChannel` logs instead of sending.
+
+> **Changing the public key invalidates every existing subscription.**
+> Everyone has to turn notifications on again, with no way to tell them
+> except an announcement. Generate once, keep them.
+
+**2. The person has turned it on, on that device.** Profile → Notifications →
+"Notifications on this device". It asks the browser for permission, registers
+with the push service, and stores the result in `push_subscriptions`. A phone,
+a laptop and the installed app are three separate subscriptions.
+
+**3. On an iPhone, the app is on the home screen.** Apple delivers web push
+only to an installed web app — in Safari the switch is replaced by a line
+saying so. This is not something the app can work around, so for iPhone users
+"install the app" and "turn on notifications" are one instruction, in that
+order.
+
+### What then happens
+
+- **Urgent announcements** go out immediately, ignoring quiet hours.
+- **Everything else** respects quiet hours (default 23:00–07:00, per person).
+  The row is saved straight away with a `deliver_at` on it, and the cron tick
+  pushes it when that time arrives — so a 02:00 fixture change reaches a phone
+  at 07:00, not at 02:00.
+- **A tick that has been down** does not flush the whole queue into everyone's
+  lock screen when it comes back: anything more than six hours late is marked
+  delivered and left in the bell (`src/core/notifications/deferred.ts`).
+- **Dead subscriptions prune themselves.** A push service answering 404 or 410
+  means the browser threw the subscription away; the row is deleted.
+
+### Checking it works (needs a real phone — no test suite can do this)
+
+1. Open the deployed app on a phone, install it (iPhone: Share → Add to Home
+   Screen), and open it from the home-screen icon.
+2. Profile → Notifications → turn on "Notifications on this device". Accept the
+   browser's permission prompt.
+3. `select user_agent, created_at from push_subscriptions;` — your device
+   should be there.
+4. Post an announcement marked **urgent** to a section only you are in, from a
+   different device. The phone should buzz within a few seconds.
+5. For the quiet-hours path: set your quiet hours to cover now, post a
+   NON-urgent announcement, and check the row has a future `deliver_at` and a
+   null `pushed_at`. It goes out on the first tick after that time.
+
+If nothing arrives: check the browser has notification permission for the
+site, that the row in `push_subscriptions` still exists (it is deleted when a
+push service reports the subscription is gone), and the Vercel function logs
+for `[web-push]` lines — every failure is logged with the status the push
+service returned.
+
 ## Scheduled work
 
 One endpoint does all of it: **`GET /api/cron/tick`**. Every tick

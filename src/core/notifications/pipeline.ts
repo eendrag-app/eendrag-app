@@ -63,6 +63,18 @@ export async function notify(trigger: NotificationTrigger): Promise<number> {
   const recipients = resolveRecipients(trigger, await fetchCandidates());
   if (recipients.length === 0) return 0;
 
+  // Quiet hours are decided here, once, and then WRITTEN DOWN. They used to be
+  // computed only in memory and handed to the channels, which was invisible
+  // while the bell was the only listener: a push that has to wait until 07:00
+  // has to outlive the request that created it (migration 0105).
+  const now = new Date();
+  const deliverAtByProfile = new Map(
+    recipients.map((r) => [
+      r.profileId,
+      trigger.urgent ? now : deliveryTime(now, r.quietHoursStart, r.quietHoursEnd),
+    ]),
+  );
+
   const db = createAdminClient();
   const { data, error } = await db
     .from("notifications")
@@ -75,21 +87,19 @@ export async function notify(trigger: NotificationTrigger): Promise<number> {
         url: trigger.url ?? "/",
         source_module: trigger.sourceModule,
         source_ref: trigger.sourceRef ?? "",
+        deliver_at: deliverAtByProfile.get(r.profileId)!.toISOString(),
       })),
     )
     .select("id, profile_id");
   if (error) throw error;
 
-  const now = new Date();
   const idByProfile = new Map(data.map((n) => [n.profile_id, n.id]));
   const batch = {
     trigger,
     deliveries: recipients.map((r) => ({
       profileId: r.profileId,
       notificationId: idByProfile.get(r.profileId)!,
-      deliverAt: trigger.urgent
-        ? now
-        : deliveryTime(now, r.quietHoursStart, r.quietHoursEnd),
+      deliverAt: deliverAtByProfile.get(r.profileId)!,
     })),
   };
 

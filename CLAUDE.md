@@ -83,10 +83,12 @@ branch + PR (`gh pr create`), conventional commits.
   purpose for the pilot. The switch to @sun.ac.za magic links is one file +
   one flag; exact steps in docs/ARCHITECTURE.md → Auth. `verified_emails`
   exists, empty, waiting.
-- **Web push is a stub** (`webPushChannel` in
-  `src/core/notifications/channels.ts`). The pipeline, targeting, quiet
-  hours, and the in-app rows are real and tested; only the push transport is
-  missing (v1.1). The stub documents exactly how to build it.
+- **Web push is real** — `webPushChannel` sends through
+  `src/core/notifications/web-push.ts`; deferred (quiet-hours) sends go out
+  from the cron tick. It needs `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY` +
+  `WEB_PUSH_PRIVATE_KEY` set, per-device consent, and on iOS the app added to
+  the home screen. Without the keys nothing is sent and nothing breaks
+  (docs/OPERATIONS.md → Notifications on a phone).
 - **The feature modules are built** (phase two, docs/BUILD-LOG.md).
   `docs/HANDOFF.md` is still the spec they were built to — read it before
   changing behaviour, and don't invent behaviour it already settles.
