@@ -29,7 +29,7 @@ export function ModuleNav() {
   return (
     <nav
       aria-label="Main"
-      className="bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur sm:static sm:z-auto sm:ml-2 sm:border-t-0 sm:bg-transparent sm:backdrop-blur-none sm:supports-[backdrop-filter]:bg-transparent"
+      className="bg-card/95 supports-[backdrop-filter]:bg-card/85 border-gold fixed inset-x-0 bottom-0 z-50 border-t-2 backdrop-blur sm:static sm:z-auto sm:ml-2 sm:border-t-0 sm:bg-transparent sm:backdrop-blur-none sm:supports-[backdrop-filter]:bg-transparent"
     >
       <div className="mx-auto flex max-w-3xl items-stretch justify-around pb-[env(safe-area-inset-bottom)] sm:justify-start sm:gap-1 sm:pb-0">
         {tabs.map((m) => {
@@ -43,9 +43,13 @@ export function ModuleNav() {
               className={cn(
                 // min-h-14 keeps the touch target comfortably over 44px.
                 "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-3 text-xs sm:min-h-0 sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-sm",
+                // Two surfaces, two active states: on a phone the bar sits on
+                // the page, so the active tab is simply the res colour; on
+                // desktop it sits on the maroon header, so the active tab is
+                // the cream pill the Intersection app uses.
                 active
-                  ? "text-foreground font-medium sm:bg-muted"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "text-primary font-semibold sm:bg-background sm:text-primary dark:sm:bg-primary/15"
+                  : "text-muted-foreground hover:text-foreground sm:text-header-muted sm:hover:text-header-foreground",
               )}
             >
               <Icon className="size-5 sm:size-4" aria-hidden />

@@ -4,6 +4,25 @@ What exists, what's assumed, what's stubbed, what's placeholder. Update this
 whenever any of those change — it's the honest inventory the next maintainer
 trusts.
 
+## 2026-08-12 — Phase three
+
+Changes asked for by the HK after living with the pilot. Each bullet lands
+with its own PR.
+
+### The res palette (PR: res colours)
+
+- **Real** — the app wears the res colours. Light mode is the Intersection
+  app people already know (maroon bar, gold hairline, cream page, white
+  cards); dark mode is near-black with orange. Both are plain CSS variables in
+  `src/app/globals.css` — no component hardcodes a colour, so the next repaint
+  is one file. Why the two modes differ: docs/DECISIONS.md, 2026-08-12.
+- **Real** — announcement cards are easier to tell apart: a 4px left edge (red
+  urgent, gold pinned, res colour unread, hairline once read), and every card
+  app-wide now has a visible border and a soft shadow instead of a 10%-opacity
+  ring that the cream page swallowed.
+- Verified with Playwright screenshots on a Pixel 7 and a desktop viewport, in
+  both themes, against the hosted database.
+
 ## 2026-08-11 — Phase two
 
 Phase two replaces the four placeholder module pages with real UIs. Each
