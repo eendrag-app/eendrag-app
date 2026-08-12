@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EVENT_CATEGORIES, eventCategoryColor, eventCategoryLabel } from "@/core/ui/event-categories";
 import { addMonths, dayKey, formatLongDate, formatMonthYear, startOfDay } from "@/core/ui/format";
 import { ColorDot } from "@/core/ui/section-badge";
@@ -72,11 +72,9 @@ export function CalendarView({
   return (
     <Card>
       <CardHeader className="gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="size-4" aria-hidden />
-            Calendar
-          </CardTitle>
+        {/* No title: the page's own <h1> says "Calendar" and a card heading
+            saying it again is just noise for a screen reader. */}
+        <div className="flex items-center justify-end gap-2">
           <div className="flex gap-1">
             <Button
               size="sm"

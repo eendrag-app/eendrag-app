@@ -394,3 +394,47 @@ shadcn's `ring-foreground/10`.
 opacity is invisible on a cream page. The left edge separates one post from
 the next *and* carries meaning that already existed but was only shown as a
 small "New" label — nothing new to learn, one more way to see it.
+
+## 2026-08-12 — The calendar is its own module and its own tab
+
+**Decision:** The shared calendar leaves the home module. `src/modules/calendar`
+now owns the month grid, the admin screens (moved from `/admin/calendar` to
+`/calendar/admin`), the `calendar` notification category, and the day-of
+reminder half of the cron tick. The home page is the announcement feed and
+nothing else.
+
+**Alternatives:** keep it as a sidebar column and add a "see all" link; put a
+calendar tab in the home module's own routes.
+
+**Why:** On a phone the calendar sat *under* the feed, so a busy week buried
+it — the HK's actual complaint. Once it needs its own screen, the module
+boundary follows: a tab is a module here, and half of "the home module" was
+already calendar code. It also makes the boundary rule earn its keep — the
+calendar module and the home module now share nothing but `@/core/calendar`.
+
+**Consequences:** calendar notifications now link to `/calendar` and carry
+`source_module: "calendar"`; already-sent reminders are unaffected because
+idempotency keys on `source_ref` (`reminder:<id>`), which did not change. The
+old `/admin/calendar` URLs are gone rather than redirected — the app is three
+weeks old and every link to them is inside the app.
+
+## 2026-08-12 — Admin is a tab, not a card at the bottom of Profile
+
+**Decision:** A new `admin` module renders `allAdminPanels()` at `/admin` and
+appears in the tab bar for admins and sport reps only. Profile keeps a single
+signpost row pointing at it. `AppModule.roles` now actually filters the tab
+bar, which is what it always claimed to do.
+
+**Alternatives:** leave it on Profile; put the panels straight into the tab bar
+as separate tabs.
+
+**Why:** The HK publishes announcements from a phone, several times a day, and
+had to open Profile and scroll past their own quiet-hours settings to get
+there. The registry already knew who may see what; the nav just wasn't asking.
+
+**Consequences:** the tab bar is five tabs for a student and six for an HK
+member, which is why `AppModule.shortName` exists — "Intersection" does not fit
+in 60px. The admin module owns the `/admin` subtree, so `/admin/announcements`
+(which cannot live under the home module's `/` basePath) is auth-gated by it.
+Role filtering in the nav is a convenience: every admin page still calls
+`requireRole`, and RLS still refuses the writes.

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { loadInbox } from "@/core/ui/inbox";
 import { NotificationBell } from "@/core/ui/notification-bell";
 import { ThemeToggle } from "@/core/ui/theme";
-import { getProfile } from "@/core/permissions";
+import { getProfile, type Role } from "@/core/permissions";
 import { ModuleNav } from "./module-nav";
 
 // The app shell: a sticky header (wordmark, registry-derived nav on desktop,
@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           >
             Eendrag
           </Link>
-          <ModuleNav />
+          <ModuleNav role={(profile?.role as Role | undefined) ?? null} />
           <div className="on-header ml-auto flex items-center gap-0.5">
             {inbox ? (
               <NotificationBell initial={inbox} />

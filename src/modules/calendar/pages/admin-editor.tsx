@@ -7,7 +7,7 @@ import { requireRole } from "@/core/permissions";
 import { toLocalInput } from "@/core/ui/format";
 import { EventForm } from "../components/event-form";
 
-// Shared by /admin/calendar/new and /admin/calendar/[id].
+// Shared by /calendar/admin/new and /calendar/admin/[id].
 export async function CalendarEditor({ id }: { id?: string }) {
   await requireRole("admin");
   const db = await createClient();
@@ -31,7 +31,7 @@ export async function CalendarEditor({ id }: { id?: string }) {
   return (
     <div className="space-y-4">
       <Link
-        href="/admin/calendar"
+        href="/calendar/admin"
         className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
       >
         <ChevronLeft className="size-4" aria-hidden />

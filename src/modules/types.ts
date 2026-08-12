@@ -2,8 +2,8 @@ import type { LucideIcon } from "lucide-react";
 import type { Role } from "@/core/permissions/roles";
 import type { NotificationCategory } from "@/core/notifications/categories";
 
-// An admin surface a module contributes to Profile → Admin. The module owns
-// the page at `href`; the Profile module only lists and links it.
+// An admin surface a module contributes to the Admin tab. The module owns
+// the page at `href`; the admin module only lists and links it.
 export interface AdminPanel {
   id: string; // unique across the app, e.g. "sport-manage"
   title: string; // "Manage sports"
@@ -15,11 +15,15 @@ export interface AdminPanel {
 // The module contract. Every folder under src/modules (except _template until
 // you copy it) default-exports one of these from its module.ts and is listed
 // in src/modules/registry.ts. Navigation, notification settings, and the
-// Profile → Admin list all derive from the registry — nothing is hardcoded
+// the Admin tab list all derive from the registry — nothing is hardcoded
 // elsewhere. See docs/ADDING-A-MODULE.md for the full recipe.
 export interface AppModule {
   id: string; // "sport" — also the migration filename tag and folder name
   name: string; // "Sport" — shown in nav
+  // Optional shorter label for the phone tab bar. An HK member sees six tabs
+  // and a 360px screen gives each of them 60px; "Intersection" does not fit.
+  // Omit unless `name` is longer than about eight characters.
+  shortName?: string;
   icon: LucideIcon;
   navPlacement: "tab" | "hidden"; // "hidden" = routable but not in the tab bar
   order: number; // tab order, ascending

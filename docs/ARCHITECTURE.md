@@ -24,7 +24,8 @@ abstractions).
 ```
 Browser ──▶ Next.js (Vercel or Docker)
               │  src/app         thin routes + shell (nav from the registry)
-              │  src/modules     the mini-apps (home, sport, intersection, profile)
+              │  src/modules     the mini-apps (home, calendar, sport,
+              │                  intersection, admin, profile)
               │  src/core        shared services (auth, db, calendar, notifications, permissions)
               ▼
             Supabase ── Postgres (+ RLS = the real authorisation layer)

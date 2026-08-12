@@ -1,3 +1,4 @@
+import { calendarTick } from "@/modules/calendar/lib/tick";
 import { homeTick } from "@/modules/home/lib/tick";
 import { intersectionTick } from "@/modules/intersection/lib/tick";
 
@@ -43,12 +44,13 @@ export async function GET(request: Request) {
   const now = new Date();
   try {
     const home = await homeTick(now);
+    const calendar = await calendarTick(now);
     const intersectionReminders = await intersectionTick(now);
     const result = {
       ok: true,
       at: now.toISOString(),
       published: home.published,
-      reminders: home.reminders + intersectionReminders,
+      reminders: calendar.reminders + intersectionReminders,
     };
     // Shows up in the Vercel logs next to the cron invocation, which is where
     // anyone debugging "why didn't my scheduled post go out" will look.
