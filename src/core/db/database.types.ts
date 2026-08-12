@@ -513,8 +513,10 @@ export type Database = {
           body: string
           category: string
           created_at: string
+          deliver_at: string
           id: string
           profile_id: string
+          pushed_at: string | null
           read_at: string | null
           source_module: string
           source_ref: string
@@ -525,8 +527,10 @@ export type Database = {
           body?: string
           category: string
           created_at?: string
+          deliver_at?: string
           id?: string
           profile_id: string
+          pushed_at?: string | null
           read_at?: string | null
           source_module: string
           source_ref?: string
@@ -537,8 +541,10 @@ export type Database = {
           body?: string
           category?: string
           created_at?: string
+          deliver_at?: string
           id?: string
           profile_id?: string
+          pushed_at?: string | null
           read_at?: string | null
           source_module?: string
           source_ref?: string
@@ -604,6 +610,47 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_seen_at: string
+          p256dh: string
+          profile_id: string
+          user_agent: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_seen_at?: string
+          p256dh: string
+          profile_id: string
+          user_agent?: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_seen_at?: string
+          p256dh?: string
+          profile_id?: string
+          user_agent?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

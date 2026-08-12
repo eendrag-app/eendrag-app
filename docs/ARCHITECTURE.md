@@ -124,8 +124,10 @@ notify(trigger)                              [pipeline.ts — server only]
       → category toggle (urgent checks only the 'urgent' toggle)
       → section-only mode filter
   → one notifications row per recipient      [always persisted — the bell]
-  → channels: inAppChannel (live), webPushChannel (stub)
-      quiet hours defer deliverAt per recipient; urgent never defers
+      with deliver_at (quiet hours) and pushed_at (null = still owed)
+  → channels: inAppChannel (live), webPushChannel (live)
+      due now → pushed immediately; deferred → the cron tick sends it
+      urgent never defers
 ```
 
 Semantics worth knowing (all pinned by tests in `targeting.test.ts` and
@@ -140,9 +142,13 @@ Semantics worth knowing (all pinned by tests in `targeting.test.ts` and
 - **Missing preference rows** behave like the signup defaults (all on except
   section-only).
 
-Web push is v1.1: `webPushChannel` in `channels.ts` documents exactly what
-implementing it needs (VAPID keys, a push_subscriptions table, a service
-worker, a cron route for deferred sends). The interface is final.
+**Web push is real** (2026-08-12). `webPushChannel` sends through
+`web-push.ts` to the endpoints in `push_subscriptions`; the service worker in
+`public/sw.js` shows the notification. What it needs to actually reach a
+phone — VAPID keys, the person's consent per device, and on iOS an installed
+app — is in docs/OPERATIONS.md → Notifications on a phone. Without the keys
+nothing is sent and nothing breaks: rows are still persisted and the bell
+still works.
 
 ## The database
 

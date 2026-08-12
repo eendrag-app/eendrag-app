@@ -400,6 +400,91 @@ describe("notifications and preferences are private", () => {
   });
 });
 
+// A push subscription is a capability: whoever holds the endpoint and the two
+// keys can make that device buzz. These prove the only person who can read or
+// write one is the person whose device it is (migration 0105).
+describe("push subscriptions are private to the device's owner", () => {
+  const endpointFor = (label: string) =>
+    `https://push.test.local/rls-${label}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  it("a user can register their own device", async () => {
+    const { error } = await student.client.from("push_subscriptions").insert({
+      profile_id: student.id,
+      endpoint: endpointFor("own"),
+      p256dh: "test-key",
+      auth: "test-auth",
+    });
+    expect(error).toBeNull();
+  });
+
+  it("a user cannot register a device against someone else's name", async () => {
+    const { error } = await student.client.from("push_subscriptions").insert({
+      profile_id: otherStudent.id,
+      endpoint: endpointFor("forged"),
+      p256dh: "test-key",
+      auth: "test-auth",
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("users cannot read each other's subscriptions — not even admins", async () => {
+    const endpoint = endpointFor("secret");
+    await admin.from("push_subscriptions").insert({
+      profile_id: otherStudent.id,
+      endpoint,
+      p256dh: "test-key",
+      auth: "test-auth",
+    });
+
+    const [asStudent, asHk] = await Promise.all([
+      student.client.from("push_subscriptions").select("endpoint").eq("endpoint", endpoint),
+      hkAdmin.client.from("push_subscriptions").select("endpoint").eq("endpoint", endpoint),
+    ]);
+    expect(asStudent.data).toEqual([]);
+    expect(asHk.data).toEqual([]);
+  });
+
+  it("users cannot delete each other's subscriptions", async () => {
+    const endpoint = endpointFor("undeletable");
+    await admin.from("push_subscriptions").insert({
+      profile_id: otherStudent.id,
+      endpoint,
+      p256dh: "test-key",
+      auth: "test-auth",
+    });
+
+    const { data } = await student.client
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", endpoint)
+      .select();
+    expect(data).toEqual([]);
+
+    // Still there, seen with the service role.
+    const { data: still } = await admin
+      .from("push_subscriptions")
+      .select("id")
+      .eq("endpoint", endpoint);
+    expect(still!.length).toBe(1);
+  });
+
+  it("a user can turn their own device off again", async () => {
+    const endpoint = endpointFor("removable");
+    await student.client.from("push_subscriptions").insert({
+      profile_id: student.id,
+      endpoint,
+      p256dh: "test-key",
+      auth: "test-auth",
+    });
+    const { data } = await student.client
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", endpoint)
+      .select();
+    expect(data!.length).toBe(1);
+  });
+});
+
 describe("calendar events", () => {
   it("a student cannot create events", async () => {
     const { error } = await student.client.from("events").insert({

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
+import { PushToggle } from "@/core/notifications/push-toggle";
 import { InstallCard } from "@/core/pwa/install";
 import { requireProfile, type Role } from "@/core/permissions";
 import { siteOrigin } from "@/core/site";
@@ -42,6 +43,8 @@ export default async function ProfilePage() {
 
   const hasAdminTools = allAdminPanels().some((p) => p.roles.includes(profile.role as Role));
   const mySection = sections.data?.find((s) => s.id === profile.section_id);
+  // Server-read so the switch is simply absent when push is not configured.
+  const pushPublicKey = process.env.NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY ?? "";
   const origin = await siteOrigin();
 
   return (
@@ -77,7 +80,7 @@ export default async function ProfilePage() {
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
           <CardDescription>
-            What shows up in your bell. Nothing is sent to your phone yet.
+            What the app is allowed to tell you — in the bell, and on your phone.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -89,6 +92,19 @@ export default async function ProfilePage() {
               end={profile.quiet_hours_end.slice(0, 5)}
             />
           </div>
+          {/* No VAPID key configured for this deployment = no switch to offer.
+              The bell carries on either way (docs/OPERATIONS.md). */}
+          {pushPublicKey ? (
+            <PushToggle publicKey={pushPublicKey} />
+          ) : (
+            <div className="space-y-1 border-t pt-4">
+              <h2 className="text-sm font-medium">On this device</h2>
+              <p className="text-muted-foreground text-sm">
+                Notifications to your phone are not switched on for this deployment
+                yet. Everything still arrives in the bell.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -479,3 +479,40 @@ because the middleware was never the enforcement point: the page still calls
 `requireProfile()` (which redirects) and RLS still returns nothing without a
 valid JWT. An expired or revoked session answers with a status (400/401) and
 is still bounced immediately, so this is not a way to linger after signing out.
+
+## 2026-08-12 — Quiet hours are written to the row, not held in memory
+
+**Decision:** `notifications` gains `deliver_at` and `pushed_at` (migration
+0105). The pipeline computes each recipient's delivery time once and stores
+it; the push channel sends what is due now, and the cron tick sends the rest
+when their time comes.
+
+**Why:** Quiet hours already "worked" — the pipeline computed a per-recipient
+`deliverAt` and handed it to the channels. With only the bell listening,
+nobody noticed the value was then thrown away when the request ended. A push
+that must wait until 07:00 has to outlive the request that created it, so the
+decision is now a column. `pushed_at` is what makes the tick idempotent, and
+what makes "did this go out?" answerable in SQL at 2am.
+
+**The trap this created, and how it is closed:** adding `deliver_at` with
+`default now()` made every historical row look due and unpushed — the first
+tick would have buzzed 280 phones with weeks of old announcements. Migration
+**0106** backfills them as delivered, and `deferred.ts` additionally refuses
+anything more than six hours late, so an outage cannot produce that storm
+either. A migration that adds a queue column has to say what the existing rows
+mean.
+
+## 2026-08-12 — Push failures are swallowed, and never retried
+
+**Decision:** `pushToProfiles` never throws: a failed send is logged, a 404/410
+deletes the subscription, and the notification is marked `pushed_at` whether
+or not every device took it.
+
+**Alternatives:** retry queue; leave `pushed_at` null on failure so the next
+tick tries again.
+
+**Why:** The row is already saved before any of this runs, so the worst case is
+a missed buzz on one device with the notification still waiting in the bell.
+Retrying is worse than it sounds: the tick has no record of WHICH devices
+succeeded, so a retry re-sends to the phones that already buzzed. A duplicate
+announcement to 280 people is a bigger failure than one silent phone.

@@ -1,3 +1,5 @@
+import { createAdminClient } from "@/core/db/admin";
+import { isPushConfigured, pushToProfiles } from "./web-push";
 import type { DeliveryBatch, NotificationChannel } from "./types";
 
 // Delivery channels. The notifications table is the source of truth — the
@@ -13,25 +15,53 @@ export const inAppChannel: NotificationChannel = {
   },
 };
 
-// Web push — STUB. The interface is final; only the body is missing.
-// Implementing it (v1.1) means:
-//   1. `npm install web-push`, generate VAPID keys (`npx web-push
-//      generate-vapid-keys`), put them in .env.local / Vercel env
-//      (WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY).
-//   2. A push_subscriptions table (profile_id, endpoint, keys jsonb) with
-//      RLS "own rows only", plus a service worker + subscribe button in
-//      Profile → Notification settings.
-//   3. Here: for each delivery where deliverAt <= now, look up the
-//      recipient's subscriptions and webpush.sendNotification(); honour
-//      deliverAt for the rest (a cron route re-runs delivery for deferred
-//      rows — see docs/ARCHITECTURE.md → Notifications).
-// Until then this channel logs and returns; the in-app bell still works.
+// Web push — the notification that arrives while the app is closed.
+//
+// Only deliveries that are due right now are sent from here. The rest are
+// somebody's quiet hours, and their `deliver_at` is already on the row: the
+// cron tick picks those up when the morning comes
+// (src/core/notifications/deferred.ts).
+//
+// Sending is best-effort by design. The rows are saved before this runs, so a
+// push service being down costs a buzz, never a notification.
 export const webPushChannel: NotificationChannel = {
   id: "web-push",
   async deliver(batch: DeliveryBatch) {
-    console.info(
-      `[web-push stub] would deliver "${batch.trigger.title}" to ${batch.deliveries.length} recipient(s)`,
+    if (!isPushConfigured()) {
+      console.info(
+        `[web-push] not configured — "${batch.trigger.title}" reached the bell only. See docs/OPERATIONS.md.`,
+      );
+      return;
+    }
+
+    const now = new Date();
+    const due = batch.deliveries.filter((d) => d.deliverAt <= now);
+    if (due.length === 0) return;
+
+    await pushToProfiles(
+      due.map((d) => d.profileId),
+      {
+        title: batch.trigger.title,
+        body: batch.trigger.body,
+        url: batch.trigger.url,
+        tag: batch.trigger.category,
+        urgent: batch.trigger.urgent,
+      },
     );
+
+    // Mark them done whether or not every device took it. A retry would mean
+    // re-sending to the phones that DID get it, and a duplicate announcement
+    // is worse than a missed buzz for the one phone that was offline — it
+    // still has the row waiting in the bell.
+    const db = createAdminClient();
+    const { error } = await db
+      .from("notifications")
+      .update({ pushed_at: now.toISOString() })
+      .in(
+        "id",
+        due.map((d) => d.notificationId),
+      );
+    if (error) console.error("[web-push] could not mark rows as pushed", error);
   },
 };
 
