@@ -44,6 +44,28 @@ with its own PR.
   `source_module: "calendar"`; reminders stay idempotent because that keys on
   `source_ref`, which did not change.
 
+### The app installs (PR: install the app)
+
+- **Real** — Eendrag is a progressive web app: `src/app/manifest.ts`,
+  `public/sw.js`, generated icons in `public/icons`, and a "Get app" button in
+  the header plus a card on Profile. On Android/Chrome it replays the browser's
+  own install prompt; on iPhone it explains Share → Add to Home Screen, which
+  is the only route Apple offers. Both disappear once installed.
+- **The service worker caches nothing on purpose** and already carries the
+  `push` / `notificationclick` handlers, so the push channel only needs a
+  server side. Reasoning: docs/DECISIONS.md, 2026-08-12.
+- **Real** — staying signed in: the middleware no longer treats "could not
+  reach Supabase" as "signed out". A `getUser()` failure with no HTTP status,
+  on a request that still carries an auth cookie, is let through to the page
+  (which enforces its own access anyway). Cookies were never the problem —
+  `@supabase/ssr` already writes them with a 400-day lifetime.
+- Verified against the running app: `/manifest.webmanifest` serves, `/sw.js`
+  registers and reaches `activated`, all four icons return 200, the
+  apple-touch-icon and both `theme-color` metas are in the document, and the
+  "Get app" button appears when `beforeinstallprompt` fires.
+- **Still missing** — nothing is pushed to a phone yet. That is the next PR:
+  VAPID keys, a `push_subscriptions` table, and the body of `webPushChannel`.
+
 ## 2026-08-11 — Phase two
 
 Phase two replaces the four placeholder module pages with real UIs. Each

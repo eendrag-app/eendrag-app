@@ -438,3 +438,44 @@ in 60px. The admin module owns the `/admin` subtree, so `/admin/announcements`
 (which cannot live under the home module's `/` basePath) is auth-gated by it.
 Role filtering in the nav is a convenience: every admin page still calls
 `requireRole`, and RLS still refuses the writes.
+
+## 2026-08-12 — A hand-written service worker, not next-pwa
+
+**Decision:** The app is installable through three plain files —
+`src/app/manifest.ts`, `public/sw.js` (about 90 lines, mostly comments), and a
+"Get app" button. No `next-pwa`, no Workbox, no generated precache manifest.
+The worker **caches nothing**: its fetch handler is a passthrough.
+
+**Alternatives:** `next-pwa` / `@ducanh2912/next-pwa` (the usual answer);
+Workbox by hand with a precache manifest.
+
+**Why:** Installability needs exactly two things — a manifest and a service
+worker with a fetch handler — and both fit on a page. What the plugins add on
+top is a caching strategy, and a caching strategy is precisely what an
+announcement app must not get wrong: a stale shell means someone reads
+yesterday's notice about tonight's meeting, and debugging that at 2am through
+a generated Workbox bundle is the opposite of the handover rule. Next already
+serves its own static assets with immutable headers, which is the part that
+actually makes it fast. If offline reading is ever wanted, add it here, on
+purpose, with a version bump — not by installing a plugin that does it
+invisibly.
+
+## 2026-08-12 — A dropped connection is not a sign-out
+
+**Decision:** The middleware only redirects to `/login` when it is confident
+nobody is signed in. If `getUser()` fails *without* an HTTP status (the shape
+of a network failure) and the request still carries a Supabase auth cookie,
+the request is let through.
+
+**Alternatives:** redirect on any null user (what it did); retry inside the
+middleware; drop the middleware check and rely on pages.
+
+**Why:** "It logs me out" was the HK's complaint, and the cookies were never
+the problem — `@supabase/ssr` writes them with a 400-day lifetime. What sends
+someone back to the login screen is a *failed check*: on campus wifi one
+`getUser()` call times out mid-scroll and the middleware reads that as signed
+out. Letting an unverifiable-but-present session through gives away nothing,
+because the middleware was never the enforcement point: the page still calls
+`requireProfile()` (which redirects) and RLS still returns nothing without a
+valid JWT. An expired or revoked session answers with a status (400/401) and
+is still bounced immediately, so this is not a way to linger after signing out.
