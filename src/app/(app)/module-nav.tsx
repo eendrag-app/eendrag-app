@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/core/permissions/roles";
 import { navModules } from "@/modules/registry";
 
 // The tab bar. Derived entirely from the module registry — adding a module
-// with navPlacement: "tab" puts it here; nothing in this file changes.
+// with navPlacement: "tab" puts it here; nothing in this file changes. The
+// signed-in role comes from the layout so that role-restricted tabs (Admin)
+// can be filtered out server-side, before any of this reaches a student.
 //
 // ONE element, two layouts: on phones it is `fixed` to the bottom of the
 // viewport (so its position in the DOM does not matter, and it can live inside
@@ -16,9 +19,9 @@ import { navModules } from "@/modules/registry";
 // Because of the `fixed`, no ancestor may have a transform, filter, or
 // backdrop-filter — any of those would become the containing block and drag
 // the tab bar up into the header. See the comment in (app)/layout.tsx.
-export function ModuleNav() {
+export function ModuleNav({ role }: { role: Role | null }) {
   const pathname = usePathname();
-  const tabs = navModules();
+  const tabs = navModules(role);
 
   function isActive(basePath: string) {
     return basePath === "/"
@@ -39,10 +42,13 @@ export function ModuleNav() {
             <Link
               key={m.id}
               href={m.basePath}
+              aria-label={m.name}
               aria-current={active ? "page" : undefined}
               className={cn(
-                // min-h-14 keeps the touch target comfortably over 44px.
-                "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-3 text-xs sm:min-h-0 sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-sm",
+                // min-h-14 keeps the touch target comfortably over 44px. The
+                // phone bar is tight on padding and type because six tabs
+                // share 360px; the desktop row can breathe.
+                "flex min-w-0 min-h-14 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] sm:min-h-0 sm:flex-none sm:flex-row sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-sm",
                 // Two surfaces, two active states: on a phone the bar sits on
                 // the page, so the active tab is simply the res colour; on
                 // desktop it sits on the maroon header, so the active tab is
@@ -53,7 +59,11 @@ export function ModuleNav() {
               )}
             >
               <Icon className="size-5 sm:size-4" aria-hidden />
-              {m.name}
+              {/* Short label where six tabs share a phone's width, the full
+                  one everywhere else. The link's aria-label is always the
+                  full name, so this is purely visual. */}
+              <span className="max-w-full truncate sm:hidden">{m.shortName ?? m.name}</span>
+              <span className="hidden sm:inline">{m.name}</span>
             </Link>
           );
         })}

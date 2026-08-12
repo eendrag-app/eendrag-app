@@ -47,7 +47,7 @@ export default async function SportPage() {
         <EmptyState
           icon={Dumbbell}
           title="No sports listed yet"
-          description="The HK adds them under Profile → Admin tools → Sports & reps."
+          description="The HK adds them under Admin → Sports & reps."
         />
       ) : (
         <div className="space-y-3">

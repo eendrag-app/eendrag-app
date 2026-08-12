@@ -23,6 +23,27 @@ with its own PR.
 - Verified with Playwright screenshots on a Pixel 7 and a desktop viewport, in
   both themes, against the hosted database.
 
+### Calendar and Admin become tabs (PR: admin and calendar tabs)
+
+- **Real** — `src/modules/calendar` is a module of its own: `/calendar` (the
+  month grid and agenda that used to sit beside the feed), `/calendar/admin`
+  (+ `/new`, `/[id]`, moved from `/admin/calendar`), the `calendar`
+  notification category, and the day-of reminder half of the cron tick. The
+  home page is the feed and nothing else.
+- **Real** — `src/modules/admin`: a tab that lists every module's
+  `adminPanels`, visible only to admins and sport reps. It owns no admin
+  screens itself. Profile keeps one row pointing at it.
+- **Real** — `AppModule.roles` now filters the tab bar (it always claimed to);
+  the layout passes the signed-in role to `ModuleNav`, so a student never
+  receives the Admin tab at all. New: `AppModule.shortName`, because six tabs
+  on a 360px phone leave 60px each and "Intersection" needs 67.
+- **New tests** — `src/modules/registry.test.ts` (8): who sees which tab, tab
+  order, longest-basePath routing, admin panels pointing at real routes,
+  unique ids and paths. Smoke tests updated for the new tabs.
+- No schema change. Calendar notifications now link to `/calendar` and carry
+  `source_module: "calendar"`; reminders stay idempotent because that keys on
+  `source_ref`, which did not change.
+
 ## 2026-08-11 — Phase two
 
 Phase two replaces the four placeholder module pages with real UIs. Each
@@ -49,7 +70,7 @@ stubbed" further down has NOT changed.
 - **Real** — `/profile`: details (name, section, room, sports played),
   notification switches built from the registry, quiet hours, the personal
   ICS link with copy + regenerate, the admin-tools list built from every
-  module's `adminPanels`, sign out.
+  module's `adminPanels` (moved to its own tab in phase three), sign out.
 - **Real** — `/profile/members` (admin): search, role changes, and
   activate/deactivate. Saves as you change it.
 - **Real** — the ICS feed itself: `/api/calendar/<calendar_token>.ics`,
@@ -88,7 +109,8 @@ stubbed" further down has NOT changed.
   it from `lg` up: month grid with colour-coded dots, tap a day for its
   events, an agenda toggle, and category filter chips. One query loads a
   window of a month back to a year ahead; paging months costs nothing.
-- **Real** — `/admin/calendar` (+ `/new`, `/[id]`): create, edit and delete
+- **Real** — `/admin/calendar` (+ `/new`, `/[id]`; `/calendar/admin` since
+  phase three): create, edit and delete
   res-wide, section and social events, with a calendar notification on
   creation and on a real change (time or place). Module-mirrored rows (sport
   fixtures, intersection games) are listed but read-only, labelled with the
@@ -304,7 +326,7 @@ the privilege-guard triggers blocked service-role bootstrap (migration
   HK confirmed the res has none, and the column was dropped in phase two —
   migration 0104.)
 - No sport reps assigned (reps must be real signed-up users; assign via
-  Profile → Admin or `scripts/create-admin.mjs` pattern).
+  the Admin tab or `scripts/create-admin.mjs` pattern).
 
 ### Assumptions phase two should know
 

@@ -73,7 +73,7 @@ export function EventAdminList({ items }: { items: AdminEvent[] }) {
                   size="sm"
                   className="h-11 sm:h-8"
                   nativeButton={false}
-                  render={<Link href={`/admin/calendar/${item.id}`} />}
+                  render={<Link href={`/calendar/admin/${item.id}`} />}
                 >
                   <Pencil aria-hidden />
                   Edit

@@ -9,7 +9,7 @@ const homeModule: AppModule = {
   order: 10,
   basePath: "/",
   requiresAuth: true,
-  notificationCategories: ["announcement", "urgent", "calendar"],
+  notificationCategories: ["announcement", "urgent"],
   adminPanels: [
     {
       id: "home-announcements",
@@ -18,15 +18,7 @@ const homeModule: AppModule = {
       href: "/admin/announcements",
       roles: ["admin"],
     },
-    {
-      id: "home-calendar",
-      title: "Calendar",
-      description: "Add and edit res-wide, section, and social events",
-      href: "/admin/calendar",
-      roles: ["admin"],
-    },
   ],
-  calendarSource: true,
 };
 
 export default homeModule;

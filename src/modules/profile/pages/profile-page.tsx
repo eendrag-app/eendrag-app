@@ -39,7 +39,7 @@ export default async function ProfilePage() {
     ]),
   );
 
-  const panels = allAdminPanels().filter((p) => p.roles.includes(profile.role as Role));
+  const hasAdminTools = allAdminPanels().some((p) => p.roles.includes(profile.role as Role));
   const mySection = sections.data?.find((s) => s.id === profile.section_id);
   const origin = await siteOrigin();
 
@@ -103,33 +103,24 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      {panels.length > 0 && (
+      {/* The admin tools themselves live on the Admin tab now — this is just a
+          signpost for anyone who still looks for them down here. */}
+      {hasAdminTools && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="size-4" aria-hidden />
-              Admin tools
-            </CardTitle>
-            <CardDescription>
-              You see these because you are {profile.role === "admin" ? "on the HK" : "a sport rep"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="divide-y">
-            {panels.map((panel) => (
-              <Link
-                key={panel.id}
-                href={panel.href}
-                className="hover:bg-muted/60 -mx-2 flex min-h-14 items-center gap-3 rounded-lg px-2"
-              >
-                <span className="flex-1">
-                  <span className="block text-sm font-medium">{panel.title}</span>
-                  <span className="text-muted-foreground block text-sm">
-                    {panel.description}
-                  </span>
+          <CardContent>
+            <Link
+              href="/admin"
+              className="hover:bg-muted/60 -mx-2 flex min-h-14 items-center gap-3 rounded-lg px-2"
+            >
+              <ShieldCheck className="text-muted-foreground size-4" aria-hidden />
+              <span className="flex-1">
+                <span className="block text-sm font-medium">Admin tools</span>
+                <span className="text-muted-foreground block text-sm">
+                  They have their own tab now — announcements, calendar, sport, members.
                 </span>
-                <ChevronRight className="text-muted-foreground size-4" aria-hidden />
-              </Link>
-            ))}
+              </span>
+              <ChevronRight className="text-muted-foreground size-4" aria-hidden />
+            </Link>
           </CardContent>
         </Card>
       )}

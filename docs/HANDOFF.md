@@ -148,7 +148,8 @@ persistence. You never write `notifications` rows directly.
 **The module contract, as a consumer:** your `module.ts` declares what you
 give the shell — `navPlacement`/`order` (tab bar), `requiresAuth`
 (middleware gating), `notificationCategories` (which toggles Profile shows),
-`adminPanels` (what Profile → Admin lists), `calendarSource` (documentation
+`adminPanels` (what the Admin tab lists — Profile → Admin until phase
+three), `calendarSource` (documentation
 of intent). Declare it and the shell does the rest; you never touch nav or
 Profile code from another module.
 
