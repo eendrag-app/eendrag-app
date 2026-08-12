@@ -122,6 +122,20 @@ with its own PR.
   YouTube link is stored and renders as an embed in the feed, and the post was
   removed afterwards.
 
+### Your section, and the result you came for (PR: my section and latest result)
+
+- **Real** — the intersection pages highlight the reader's own section: the
+  leaderboard row, the group standings, and any fixture their section is in
+  (tinted row, name in the res colour, plus an sr-only "your section" so it is
+  not colour alone). The section comes from `getProfile()`, which returns null
+  signed out — these pages are public and simply show no highlight to a
+  visitor who followed a link out of WhatsApp.
+- **Real** — `/sport/[id]` leads with the most recent result. It used to be
+  below practice, the rep and every fixture, which is a long way to scroll for
+  the thing people open a sport to find out. The full list is still there and
+  still includes it.
+- No schema change.
+
 ## 2026-08-11 — Phase two
 
 Phase two replaces the four placeholder module pages with real UIs. Each

@@ -11,19 +11,27 @@ export function MatchRow({
   match,
   note,
   nameOf,
+  mySectionId,
 }: {
   match: Match;
   note: string | null;
   nameOf: (id: string) => string;
+  /** The reader's own section, so their games stand out. Null when signed out. */
+  mySectionId?: string | null;
   scheduledAt?: string | null;
 }) {
+  const mine =
+    mySectionId != null && (match.teamAId === mySectionId || match.teamBId === mySectionId);
   return (
-    <div className="space-y-1 py-2.5">
+    // A game the reader is in gets a tinted strip. The page is public, so this
+    // is simply absent for a visitor who followed a link out of WhatsApp.
+    <div className={cn("space-y-1 py-2.5", mine && "bg-primary/8 -mx-2 rounded-lg px-2")}>
       <div className="flex items-center gap-2">
         <Side
           sectionId={match.teamAId}
           fallback={match.sources?.[0]}
           isWinner={match.played && match.winnerId === match.teamAId}
+          isMine={match.teamAId != null && match.teamAId === mySectionId}
           nameOf={nameOf}
         />
         <span className="text-muted-foreground text-xs">v</span>
@@ -31,6 +39,7 @@ export function MatchRow({
           sectionId={match.teamBId}
           fallback={match.sources?.[1]}
           isWinner={match.played && match.winnerId === match.teamBId}
+          isMine={match.teamBId != null && match.teamBId === mySectionId}
           nameOf={nameOf}
         />
       </div>
@@ -43,18 +52,28 @@ function Side({
   sectionId,
   fallback,
   isWinner,
+  isMine,
   nameOf,
 }: {
   sectionId: string | null;
   fallback?: string;
   isWinner: boolean;
+  isMine: boolean;
   nameOf: (id: string) => string;
 }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
       {sectionId ? (
         <>
-          <span className={cn("truncate", isWinner && "font-semibold")}>{nameOf(sectionId)}</span>
+          <span
+            className={cn(
+              "truncate",
+              isWinner && "font-semibold",
+              isMine && "text-primary font-semibold",
+            )}
+          >
+            {nameOf(sectionId)}
+          </span>
           {isWinner && <Crown className="size-3.5 shrink-0" aria-label="Winner" />}
         </>
       ) : (

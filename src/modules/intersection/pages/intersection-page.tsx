@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ChevronRight, Crown, Trophy, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getProfile } from "@/core/permissions";
 import { EmptyState } from "@/core/ui/empty-state";
 import { formatDateTime, formatLongDate } from "@/core/ui/format";
+import { cn } from "@/lib/utils";
 import { teamsLabel } from "../lib/copy";
 import { loadEvents, loadPoints, loadSections } from "../lib/load";
 import { leaderboard, placements } from "../lib/tournament";
@@ -15,11 +17,14 @@ export const metadata = { title: "Intersection" };
 // requiresAuth: false and RLS lets anon read the intersection tables; writes
 // are admin-only.
 export default async function IntersectionPage() {
-  const [events, sections, points] = await Promise.all([
+  // Signed out (which this page must work for) simply means no highlight.
+  const [events, sections, points, profile] = await Promise.all([
     loadEvents(),
     loadSections(),
     loadPoints(),
+    getProfile(),
   ]);
+  const mySectionId = profile?.section_id ?? null;
   const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
 
   const completed = events.filter((event) => event.status === "completed");
@@ -50,12 +55,24 @@ export default async function IntersectionPage() {
             </p>
           ) : (
             <ol className="divide-y">
-              {table.map((row, index) => (
-                <li key={row.sectionId} className="flex items-center gap-3 py-2">
+              {table.map((row, index) => {
+                const mine = row.sectionId === mySectionId;
+                return (
+                <li
+                  key={row.sectionId}
+                  className={cn(
+                    "flex items-center gap-3 py-2",
+                    // Your own section, findable at a glance in a table of 12.
+                    mine && "bg-primary/8 -mx-2 rounded-lg px-2",
+                  )}
+                >
                   <span className="text-muted-foreground w-6 text-sm tabular-nums">
                     {index + 1}
                   </span>
-                  <span className="flex-1 text-sm font-medium">{row.name}</span>
+                  <span className={cn("flex-1 text-sm font-medium", mine && "text-primary")}>
+                    {row.name}
+                    {mine && <span className="sr-only"> (your section)</span>}
+                  </span>
                   {row.eventsWon > 0 && (
                     <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
                       <Crown className="size-3.5" aria-hidden />
@@ -66,7 +83,8 @@ export default async function IntersectionPage() {
                     {row.points}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ol>
           )}
         </CardContent>
