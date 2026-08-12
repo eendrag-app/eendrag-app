@@ -516,3 +516,41 @@ a missed buzz on one device with the notification still waiting in the bell.
 Retrying is worse than it sounds: the tick has no record of WHICH devices
 succeeded, so a retry re-sends to the phones that already buzzed. A duplicate
 announcement to 280 people is a bigger failure than one silent phone.
+
+## 2026-08-12 — Video: a link first, a small upload second
+
+**Decision:** An announcement can carry EITHER a pasted YouTube/Vimeo link
+(`video_url`) OR an uploaded clip capped at 25 MB (`video_path`), never both
+(migration 0301, with a check constraint). The compose form offers the link
+first. YouTube and Vimeo play inline through an iframe; any other link is
+offered as a plain link.
+
+**Alternatives:** uploads only, like images; links only; embed any URL.
+
+**Why — the drawback that decided it is bandwidth, not disk.** Supabase's free
+tier includes 5 GB of egress a month. One 25 MB clip watched by 280 students
+is **7 GB — more than a month's allowance in a single post.** Storage is 1 GB,
+so a handful of clips fills that too. A YouTube link costs the app nothing, has
+no length limit, and streams adaptively on a phone in a res room with bad
+signal, which our storage does not.
+
+Uploads are kept anyway because the HK will want to post a ten-second clip
+from a phone without opening YouTube, and that is a real use. It is capped at
+25 MB (both in the form and on the bucket, so a lying client cannot beat it),
+which is about 45 seconds of phone video, and the form says why next to the
+button.
+
+**The other traps, all deliberate:**
+
+- **MP4 and WebM only.** An iPhone's own `.mov` is usually HEVC, which most
+  browsers will not play — the post would render as a black rectangle for half
+  the res. The form says so instead.
+- **No autoplay, `preload="metadata"`.** This is a feed; a post that starts
+  making noise while someone scrolls is how apps get muted, and autoplay on
+  mobile data is rude.
+- **Arbitrary links are never put in an iframe.** Only YouTube and Vimeo are
+  embedded, through `youtube-nocookie.com`. Anything else becomes a link —
+  embedding a URL an admin pasted, on a page 280 signed-in students are
+  looking at, is a hole with no upside.
+- **Nothing deletes the storage object when a post is deleted.** Same as
+  images and PDFs today; noted in docs/BUILD-LOG.md rather than pretended away.

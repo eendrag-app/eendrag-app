@@ -97,6 +97,31 @@ with its own PR.
   it on a real phone are in docs/OPERATIONS.md → Notifications on a phone, and
   it needs the VAPID keys set in Vercel first.
 
+### Video on announcements (PR: announcement video)
+
+- **Real** — an announcement carries either a pasted YouTube/Vimeo link or an
+  uploaded clip, never both (migration **0301**, check constraint). Links play
+  inline through `youtube-nocookie.com`; uploads play from our storage with
+  controls, no autoplay, `preload="metadata"`. Anything that is not YouTube or
+  Vimeo becomes a plain link — an iframe of an arbitrary pasted URL does not
+  belong on a page the res is signed into.
+- **Capped at 25 MB, enforced twice** (the form, and `file_size_limit` on the
+  bucket). The reason is egress, not disk: one 25 MB clip watched by 280 people
+  is 7 GB, against a 5 GB monthly free tier. The form says so next to the
+  button, and says to use YouTube for anything longer.
+- **MP4 and WebM only** — an iPhone `.mov` is usually HEVC, which most browsers
+  will not play.
+- `parseVideoUrl` (`lib/video.ts`, 6 tests) reads every YouTube shape people
+  actually paste (`youtu.be`, `/watch?v=`, `/shorts/`, `/embed/`, with extra
+  query parameters) and refuses anything that is not https.
+- **Known gap, unchanged from images and PDFs:** deleting an announcement does
+  not delete its uploaded file from storage. Worth a cleanup job if storage
+  ever gets tight.
+- Verified end to end against the hosted database by driving the real compose
+  form: a nonsense link is refused with the message the form promises, a
+  YouTube link is stored and renders as an embed in the feed, and the post was
+  removed afterwards.
+
 ## 2026-08-11 — Phase two
 
 Phase two replaces the four placeholder module pages with real UIs. Each

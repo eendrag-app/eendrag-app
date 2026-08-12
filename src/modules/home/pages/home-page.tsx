@@ -9,6 +9,7 @@ import { EmptyState } from "@/core/ui/empty-state";
 import { relativeTime } from "@/core/ui/format";
 import { AnnouncementCard } from "../components/announcement-card";
 import { FEED_PAGE_SIZE, authorName, partitionFeed } from "../lib/announcements";
+import { parseVideoUrl } from "../lib/video";
 
 // The feed: the reason people open the app. RLS already limits what comes
 // back to published posts that are res-wide or aimed at the reader's own
@@ -38,7 +39,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     // refuses it), and it has to stay ONE literal — supabase-js infers the row
     // type from it, and a concatenated string types as `unknown`.
     .select(
-      "id, title, body, is_urgent, is_system, published_at, image_path, pdf_path, author:profiles!announcements_author_id_fkey(full_name), section:sections!announcements_target_section_id_fkey(name)",
+      "id, title, body, is_urgent, is_system, published_at, image_path, pdf_path, video_path, video_url, author:profiles!announcements_author_id_fkey(full_name), section:sections!announcements_target_section_id_fkey(name)",
     )
     .eq("status", "published")
     .order("published_at", { ascending: false })
@@ -62,7 +63,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   // Which of these has this reader already seen, and signed links for any
   // attachments. Both are one round trip for the whole page.
   const ids = items.map((a) => a.id);
-  const paths = items.flatMap((a) => [a.image_path, a.pdf_path].filter((p): p is string => !!p));
+  const paths = items.flatMap((a) =>
+    [a.image_path, a.pdf_path, a.video_path].filter((p): p is string => !!p),
+  );
   const [reads, signed] = await Promise.all([
     ids.length > 0
       ? db.from("announcement_reads").select("announcement_id").in("announcement_id", ids)
@@ -98,6 +101,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       sectionName={a.section?.name}
       imageUrl={a.image_path ? urlByPath.get(a.image_path) : null}
       pdfUrl={a.pdf_path ? urlByPath.get(a.pdf_path) : null}
+      videoUrl={a.video_path ? urlByPath.get(a.video_path) : null}
+      video={a.video_url ? parseVideoUrl(a.video_url) : null}
       read={readIds.has(a.id)}
     />
   );
