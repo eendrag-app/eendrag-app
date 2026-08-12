@@ -17,24 +17,27 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="min-h-dvh">
-      {/* Solid background, NO backdrop-blur here: a backdrop-filter makes an
+      {/* The res bar: maroon in the light, near-black in the dark, with the
+          gold hairline the Intersection app has always had under it.
+
+          Solid background, NO backdrop-blur here: a backdrop-filter makes an
           element the containing block for `position: fixed` descendants, and
           the tab bar inside is fixed to the bottom of the screen on phones.
           Blurring here pins it to the bottom of the header instead. */}
-      <header className="bg-background sticky top-0 z-40 border-b">
+      <header className="bg-header text-header-foreground border-gold sticky top-0 z-40 border-b-2">
         <div className="mx-auto flex h-14 max-w-3xl items-center px-4">
-          <Link href="/" className="font-heading text-base font-semibold tracking-tight">
+          <Link
+            href="/"
+            className="font-heading text-base font-bold tracking-[0.14em] uppercase"
+          >
             Eendrag
           </Link>
           <ModuleNav />
-          <div className="ml-auto flex items-center gap-0.5">
+          <div className="on-header ml-auto flex items-center gap-0.5">
             {inbox ? (
               <NotificationBell initial={inbox} />
             ) : (
-              <Link
-                href="/login"
-                className="hover:bg-muted rounded-lg px-3 py-2 text-sm font-medium"
-              >
+              <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-medium">
                 Sign in
               </Link>
             )}

@@ -4,16 +4,16 @@ import type { EventCategory } from "@/core/calendar";
 // direction). The neutral palette does almost everything; these colours only
 // ever tint a dot or a badge, never a surface.
 //
-//   res_wide     the primary token
-//   section      amber
+//   res_wide     the primary token (maroon in the light, orange in the dark)
+//   section      burnt orange
 //   intersection violet
 //   social       pink
 //   sport        emerald
 //
 // These say what KIND of event something is. They are not section identities:
 // Eendrag's sections do not have colours, and the column that used to pretend
-// otherwise was dropped in migration 0104. Every section event is amber,
-// whichever section it belongs to.
+// otherwise was dropped in migration 0104. Every section event is the same
+// burnt orange, whichever section it belongs to.
 //
 // The CSS variables live in src/app/globals.css so light and dark can differ.
 

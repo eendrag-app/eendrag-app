@@ -77,7 +77,20 @@ export function AnnouncementCard(props: AnnouncementCardProps) {
   return (
     <Card
       ref={cardRef}
-      className={cn(props.isUrgent && "ring-destructive/40 border-destructive/40 ring-2")}
+      // A coloured left edge on every post: it separates one card from the
+      // next in a long feed, and it carries meaning rather than decoration —
+      // red for urgent, gold for pinned, the res maroon while a post is still
+      // unread, and a plain hairline once it has been read.
+      className={cn(
+        "border-l-4",
+        props.isUrgent
+          ? "border-l-destructive ring-destructive/40 ring-2"
+          : props.pinned
+            ? "border-l-gold"
+            : read
+              ? "border-l-border"
+              : "border-l-primary",
+      )}
     >
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

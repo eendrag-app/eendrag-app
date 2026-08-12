@@ -77,10 +77,13 @@ not a student side project: restrained, fast, quiet.
 
 Already in place (don't invent a second design language):
 
-- **Base:** shadcn/ui "neutral" theme, CSS variables in
-  `src/app/globals.css`. Light + `.dark` palettes are defined; wire a theme
-  toggle with `next-themes` (class strategy) if you add one, defaulting to
-  system.
+- **Base:** ~~shadcn/ui "neutral" theme~~ — **superseded 2026-08-12.** The
+  palette is now the res's own: maroon + gold + cream in the light,
+  near-black + orange in the dark, still entirely CSS variables in
+  `src/app/globals.css`, still `next-themes` (class strategy, defaults to
+  system). Everything below about *discipline* still holds — the palette does
+  almost everything and colour is never the only signal. See
+  docs/DECISIONS.md, 2026-08-12.
 - **Type:** Geist Sans (variable `--font-geist-sans`, set in
   `src/app/layout.tsx`). Page titles `text-2xl font-semibold`; body text
   default; metadata/labels `text-sm text-muted-foreground`.
@@ -95,11 +98,11 @@ Already in place (don't invent a second design language):
     section colours, so the column was dropped (migration 0104) and sections
     are identified by name alone. See docs/DECISIONS.md.
   - *Calendar categories:* colour the dot/badge, not the surface —
-    res_wide: `primary`; section: `amber-500` (a category colour, not a
-    section identity); intersection: `violet-500`; social: `pink-500`;
-    sport: `emerald-500`. Define these
-    once in `src/core/ui/` or a shared module-free helper and import
-    everywhere.
+    res_wide: `primary`; section: burnt orange (a category colour, not a
+    section identity; `amber-500` until the res palette landed, when it
+    stopped being distinguishable from gold); intersection: `violet-500`;
+    social: `pink-500`; sport: `emerald-500`. They are defined once, in
+    `src/core/ui/event-categories.ts`.
 - **Components:** shadcn primitives already installed: button, card, badge,
   input, label, select, switch, tabs, dialog, sheet, dropdown-menu,
   skeleton, separator, textarea, avatar. Add more via

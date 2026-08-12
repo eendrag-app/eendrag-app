@@ -347,3 +347,50 @@ policy on `announcement_reads` at all.
 layer, as specified — the function returns numbers and nothing else, and the
 absence of a select policy makes the identity leak structurally impossible
 rather than a UI courtesy.
+
+## 2026-08-12 — The app wears the res colours (maroon/gold light, black/orange dark)
+
+**Decision:** The shadcn "neutral" palette is replaced by a res palette
+defined entirely in `src/app/globals.css`. Light mode is the old Intersection
+app people already know — a deep maroon bar with a gold hairline over a cream
+page, white cards. Dark mode is near-black surfaces with **orange**, the res
+colour, doing what maroon does in the light. Two new token pairs carry the
+identity: `--header`/`--header-foreground`/`--header-muted` (the bar) and
+`--gold`/`--gold-foreground` (the one decorative accent).
+
+**Alternatives:** orange in both modes (one brand colour everywhere); maroon
+in both modes; keep neutral and add an accent.
+
+**Why:** The res reads the Intersection app today and will recognise the
+maroon-and-gold instantly, which is the whole point of "official res
+infrastructure, not a student side project". Orange is the res colour and
+belongs somewhere prominent, and it is the one warm accent that survives on a
+black background — maroon on black is mud. The HK chose this split
+deliberately (2026-08-12); it is not an oversight that the two modes differ.
+
+Consequences worth knowing:
+
+- **`primary` is maroon in the light and orange in the dark.** Anything that
+  says `bg-primary` changes hue with the theme, including the `res_wide`
+  calendar dot. That is intended.
+- **`destructive` is deliberately pushed away from `primary` in both modes** —
+  an oranger red in the light so it separates from maroon, a crimson in the
+  dark so it separates from orange. Urgent must never read as "more chrome".
+  Urgent also always carries the triangle icon and the word, so colour is
+  never the only signal.
+- **Section events are burnt orange, not amber** (`--event-section`): gold and
+  amber were the same colour at a glance.
+- Buttons sitting on the header bar use the `.on-header` class (globals.css)
+  because ghost colours tuned for page surfaces disappear on maroon.
+
+## 2026-08-12 — Announcement cards carry a coloured left edge
+
+**Decision:** Every card in the feed gets a 4px left border: red for urgent,
+gold for pinned, maroon/orange while unread, a plain hairline once read. All
+cards app-wide also gained `ring-border` plus a soft shadow in place of
+shadcn's `ring-foreground/10`.
+
+**Why:** The HK's complaint was that posts ran together. A hairline at 10%
+opacity is invisible on a cream page. The left edge separates one post from
+the next *and* carries meaning that already existed but was only shown as a
+small "New" label — nothing new to learn, one more way to see it.
