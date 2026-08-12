@@ -15,11 +15,17 @@ role.
 2. Write a clear title (that's what the notification shows) and the body.
 3. Choose who it's for: **whole res**, or one section.
 4. Attach an image or PDF if needed (posters, menus, notices).
-5. **Urgent?** Only for genuinely urgent things (water off, safety, deadline
+5. Video, if there is one. **Paste a YouTube or Vimeo link** where you can —
+   it plays inside the post, has no length limit, and costs the app nothing.
+   Uploading a clip is there for the ten-second phone video: MP4 or WebM, up
+   to 25 MB. One 25 MB clip watched by the whole res is more data than the
+   app's free monthly allowance, so keep uploads short and put anything longer
+   on YouTube.
+6. **Urgent?** Only for genuinely urgent things (water off, safety, deadline
    today). Urgent posts notify people even during quiet hours (23:00–07:00)
    and are pinned at the top for 24 hours. If everything is urgent, nothing
    is.
-6. **Publish** to send now, **Schedule** to pick a date and time, or **Save
+7. **Publish** to send now, **Schedule** to pick a date and time, or **Save
    draft** to finish later.
 
 The list shows how many people have **opened** each announcement — a post

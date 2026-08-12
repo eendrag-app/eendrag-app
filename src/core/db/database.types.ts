@@ -88,6 +88,8 @@ export type Database = {
           target_section_id: string | null
           title: string
           updated_at: string
+          video_path: string | null
+          video_url: string | null
         }
         Insert: {
           author_id?: string | null
@@ -104,6 +106,8 @@ export type Database = {
           target_section_id?: string | null
           title: string
           updated_at?: string
+          video_path?: string | null
+          video_url?: string | null
         }
         Update: {
           author_id?: string | null
@@ -120,6 +124,8 @@ export type Database = {
           target_section_id?: string | null
           title?: string
           updated_at?: string
+          video_path?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {

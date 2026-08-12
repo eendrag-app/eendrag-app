@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, ImageIcon, X } from "lucide-react";
+import { FileText, ImageIcon, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,17 @@ const BUCKET = "announcement-attachments";
 const MAX_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
+// Video is capped far tighter than it looks, and the reason is BANDWIDTH, not
+// disk: one 25 MB clip watched by 280 people is 7 GB, and the whole free tier
+// is 5 GB a month. The storage bucket enforces the same number server-side
+// (migration 0301); this check exists so the person finds out before the
+// upload rather than after it.
+const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+// mp4 and webm only. An iPhone's own .mov is usually HEVC, which most browsers
+// refuse to play — better to say so than to post a video half the res sees a
+// black rectangle for.
+const VIDEO_TYPES = ["video/mp4", "video/webm"];
+
 export interface AnnouncementFormValues {
   id?: string;
   title: string;
@@ -29,6 +40,8 @@ export interface AnnouncementFormValues {
   targetSectionId: string;
   imagePath: string | null;
   pdfPath: string | null;
+  videoPath: string | null;
+  videoUrl: string;
   scheduledFor: string; // datetime-local value, "" when not scheduled
   status: string;
 }
@@ -48,6 +61,8 @@ export function AnnouncementForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [imagePath, setImagePath] = useState(values.imagePath);
   const [pdfPath, setPdfPath] = useState(values.pdfPath);
+  const [videoPath, setVideoPath] = useState(values.videoPath);
+  const [videoUrl, setVideoUrl] = useState(values.videoUrl);
   const [urgent, setUrgent] = useState(values.isUrgent);
   const [scheduled, setScheduled] = useState(values.scheduledFor);
   const [uploading, setUploading] = useState(false);
@@ -59,15 +74,31 @@ export function AnnouncementForm({
     ...sections.map((s) => ({ value: s.id, label: `${s.name} only` })),
   ];
 
-  async function upload(file: File, kind: "image" | "pdf") {
+  async function upload(file: File, kind: "image" | "pdf" | "video") {
     setError(null);
-    if (file.size > MAX_BYTES) {
-      setError("That file is bigger than 10 MB — please shrink it first.");
+    const limit = kind === "video" ? MAX_VIDEO_BYTES : MAX_BYTES;
+    if (file.size > limit) {
+      setError(
+        kind === "video"
+          ? "That video is bigger than 25 MB. Put it on YouTube and paste the link instead — no limit, and it does not eat the app's data."
+          : "That file is bigger than 10 MB — please shrink it first.",
+      );
       return;
     }
-    const okType = kind === "image" ? IMAGE_TYPES.includes(file.type) : file.type === "application/pdf";
+    const okType =
+      kind === "image"
+        ? IMAGE_TYPES.includes(file.type)
+        : kind === "video"
+          ? VIDEO_TYPES.includes(file.type)
+          : file.type === "application/pdf";
     if (!okType) {
-      setError(kind === "image" ? "Images only: PNG, JPG, WebP or GIF." : "PDFs only.");
+      setError(
+        kind === "image"
+          ? "Images only: PNG, JPG, WebP or GIF."
+          : kind === "video"
+            ? "MP4 or WebM only. An iPhone .mov is usually HEVC, which most browsers will not play — export it as MP4, or use a YouTube link."
+            : "PDFs only.",
+      );
       return;
     }
 
@@ -82,18 +113,23 @@ export function AnnouncementForm({
       return;
     }
 
-    const previous = kind === "image" ? imagePath : pdfPath;
+    const previous = kind === "image" ? imagePath : kind === "video" ? videoPath : pdfPath;
     if (previous) await db.storage.from(BUCKET).remove([previous]);
     if (kind === "image") setImagePath(path);
-    else setPdfPath(path);
+    else if (kind === "video") {
+      setVideoPath(path);
+      // One video per post: an uploaded clip replaces a pasted link.
+      setVideoUrl("");
+    } else setPdfPath(path);
   }
 
-  async function removeAttachment(kind: "image" | "pdf") {
-    const path = kind === "image" ? imagePath : pdfPath;
+  async function removeAttachment(kind: "image" | "pdf" | "video") {
+    const path = kind === "image" ? imagePath : kind === "video" ? videoPath : pdfPath;
     if (!path) return;
     const db = createClient();
     await db.storage.from(BUCKET).remove([path]);
     if (kind === "image") setImagePath(null);
+    else if (kind === "video") setVideoPath(null);
     else setPdfPath(null);
   }
 
@@ -106,6 +142,8 @@ export function AnnouncementForm({
     formData.set("isUrgent", urgent ? "true" : "false");
     formData.set("imagePath", imagePath ?? "");
     formData.set("pdfPath", pdfPath ?? "");
+    formData.set("videoPath", videoPath ?? "");
+    formData.set("videoUrl", videoPath ? "" : videoUrl.trim());
     // On success the action redirects to the list and this never resolves.
     const result = await saveAnnouncement(formData);
     setBusy(false);
@@ -231,6 +269,62 @@ export function AnnouncementForm({
               Remove PDF
             </Button>
           )}
+        </div>
+
+        {/* Video, two ways round. The link comes first on purpose: it is free,
+            has no length limit, and costs the app no bandwidth. */}
+        <div className="space-y-2 rounded-lg border p-3">
+          <Label htmlFor="videoUrl">Video</Label>
+          <Input
+            id="videoUrl"
+            value={videoUrl}
+            disabled={Boolean(videoPath)}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="Paste a YouTube or Vimeo link"
+            className="h-11"
+            inputMode="url"
+          />
+          <p className="text-muted-foreground text-sm">
+            Best for anything longer than a few seconds: no size limit, and it plays
+            inside the post.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Label
+              htmlFor="video"
+              className="hover:bg-muted inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-medium"
+            >
+              <Video className="size-4" aria-hidden />
+              {videoPath ? "Replace the clip" : "…or upload a short clip"}
+            </Label>
+            <input
+              id="video"
+              type="file"
+              accept={VIDEO_TYPES.join(",")}
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void upload(file, "video");
+                e.target.value = "";
+              }}
+            />
+            {videoPath && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeAttachment("video")}
+              >
+                <X aria-hidden />
+                Remove the clip
+              </Button>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">
+            MP4 or WebM, up to 25 MB — about 45 seconds of phone video. Uploads are
+            served from the app&rsquo;s own storage, and one clip watched by the whole
+            res is a lot of data, so keep them short.
+          </p>
         </div>
 
         {uploading && <p className="text-muted-foreground text-sm">Uploading…</p>}

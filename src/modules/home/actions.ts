@@ -7,6 +7,7 @@ import { createClient } from "@/core/db/server";
 import { requireProfile, requireRole } from "@/core/permissions";
 import { fromLocalInput } from "@/core/ui/format";
 import { notifyAnnouncementPublished } from "./lib/publish";
+import { parseVideoUrl } from "./lib/video";
 
 // Announcement writing. requireRole("admin") is the polite door; the real gate
 // is the RLS policy set on announcements (migration 0300) — a student POSTing
@@ -21,18 +22,35 @@ const saveInput = z
     targetSectionId: z.uuid().nullable(),
     imagePath: z.string().max(300).nullable(),
     pdfPath: z.string().max(300).nullable(),
+    videoPath: z.string().max(300).nullable(),
+    // Parsed rather than merely length-checked: parseVideoUrl is what decides
+    // whether the feed can embed it, so a link it cannot read is rejected here
+    // instead of rendering as nothing.
+    videoUrl: z
+      .string()
+      .max(500)
+      .nullable()
+      .refine((v) => v === null || parseVideoUrl(v) !== null, {
+        message: "That does not look like a video link. Paste the whole https:// address.",
+      }),
     intent: z.enum(["draft", "schedule", "publish"]),
     scheduledFor: z.string().nullable(),
   })
   .refine((v) => v.intent !== "schedule" || (v.scheduledFor ?? "") !== "", {
     message: "Pick a date and time to schedule it",
     path: ["scheduledFor"],
+  })
+  .refine((v) => v.videoPath === null || v.videoUrl === null, {
+    message: "One video per post: either the uploaded clip or the link.",
+    path: ["videoUrl"],
   });
 
 function readSaveForm(formData: FormData) {
   const section = String(formData.get("targetSectionId") ?? "");
   const image = String(formData.get("imagePath") ?? "");
   const pdf = String(formData.get("pdfPath") ?? "");
+  const videoPath = String(formData.get("videoPath") ?? "");
+  const videoUrl = String(formData.get("videoUrl") ?? "").trim();
   const scheduled = String(formData.get("scheduledFor") ?? "");
   const id = String(formData.get("id") ?? "");
   return {
@@ -44,6 +62,8 @@ function readSaveForm(formData: FormData) {
     targetSectionId: section === "" ? null : section,
     imagePath: image === "" ? null : image,
     pdfPath: pdf === "" ? null : pdf,
+    videoPath: videoPath === "" ? null : videoPath,
+    videoUrl: videoUrl === "" ? null : videoUrl,
     intent: formData.get("intent"),
     scheduledFor: scheduled === "" ? null : scheduled,
   };
@@ -71,6 +91,8 @@ export async function saveAnnouncement(formData: FormData) {
     target_section_id: input.targetSectionId,
     image_path: input.imagePath,
     pdf_path: input.pdfPath,
+    video_path: input.videoPath,
+    video_url: input.videoUrl,
     status,
     scheduled_for:
       input.intent === "schedule" ? fromLocalInput(input.scheduledFor!).toISOString() : null,

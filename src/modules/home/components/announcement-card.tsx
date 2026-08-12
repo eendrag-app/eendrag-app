@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText, TriangleAlert } from "lucide-react";
+import { FileText, Play, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionBadge } from "@/core/ui/section-badge";
 import { cn } from "@/lib/utils";
 import { markAnnouncementRead } from "../actions";
+import type { ParsedVideo } from "../lib/video";
 
 export interface AnnouncementCardProps {
   id: string;
@@ -20,6 +21,10 @@ export interface AnnouncementCardProps {
   sectionName?: string | null;
   imageUrl?: string | null;
   pdfUrl?: string | null;
+  /** A clip uploaded to our own storage, behind a signed URL. */
+  videoUrl?: string | null;
+  /** A pasted link, already parsed on the server (lib/video.ts). */
+  video?: ParsedVideo | null;
   read: boolean;
 }
 
@@ -79,8 +84,12 @@ export function AnnouncementCard(props: AnnouncementCardProps) {
       ref={cardRef}
       // A coloured left edge on every post: it separates one card from the
       // next in a long feed, and it carries meaning rather than decoration —
-      // red for urgent, gold for pinned, the res maroon while a post is still
-      // unread, and a plain hairline once it has been read.
+      // red for urgent, gold for pinned, the res colour otherwise, at full
+      // strength while a post is unread.
+      //
+      // The read state only DIMS it, never removes it: a card is marked read
+      // after a second on screen, so an edge that disappeared then would be
+      // gone before it had separated anything.
       className={cn(
         "border-l-4",
         props.isUrgent
@@ -88,7 +97,7 @@ export function AnnouncementCard(props: AnnouncementCardProps) {
           : props.pinned
             ? "border-l-gold"
             : read
-              ? "border-l-border"
+              ? "border-l-primary/30"
               : "border-l-primary",
       )}
     >
@@ -146,6 +155,48 @@ export function AnnouncementCard(props: AnnouncementCardProps) {
             loading="lazy"
           />
         )}
+
+        {/* An uploaded clip. No autoplay and preload="metadata": this is a
+            feed, people are on mobile data, and a post that starts making
+            noise while you scroll is the reason people mute apps. */}
+        {props.videoUrl && (
+          <video
+            src={props.videoUrl}
+            controls
+            playsInline
+            preload="metadata"
+            className="max-h-96 w-full rounded-lg bg-black"
+          >
+            Your browser cannot play this video.
+          </video>
+        )}
+
+        {/* A pasted link. YouTube and Vimeo play inline; anything else is
+            offered as a link, because an iframe of an arbitrary site does not
+            belong on a page the whole res is signed into. */}
+        {props.video &&
+          (props.video.kind === "link" ? (
+            <a
+              href={props.video.watchUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:bg-muted inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium"
+            >
+              <Play className="size-4" aria-hidden />
+              Watch the video
+            </a>
+          ) : (
+            <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+              <iframe
+                src={props.video.embedUrl}
+                title={`Video: ${props.title}`}
+                loading="lazy"
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+                className="size-full border-0"
+              />
+            </div>
+          ))}
 
         {props.pdfUrl && (
           <a

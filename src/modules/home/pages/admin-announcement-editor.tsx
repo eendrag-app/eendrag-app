@@ -19,7 +19,7 @@ export async function AnnouncementEditor({ id }: { id?: string }) {
     ? (
         await db
           .from("announcements")
-          .select("id, title, body, is_urgent, target_section_id, image_path, pdf_path, scheduled_for, status")
+          .select("id, title, body, is_urgent, target_section_id, image_path, pdf_path, video_path, video_url, scheduled_for, status")
           .eq("id", id)
           .maybeSingle()
       ).data
@@ -62,6 +62,8 @@ export async function AnnouncementEditor({ id }: { id?: string }) {
               targetSectionId: existing?.target_section_id ?? "",
               imagePath: existing?.image_path ?? null,
               pdfPath: existing?.pdf_path ?? null,
+              videoPath: existing?.video_path ?? null,
+              videoUrl: existing?.video_url ?? "",
               scheduledFor: existing?.scheduled_for ? toLocalInput(existing.scheduled_for) : "",
               status: existing?.status ?? "draft",
             }}
