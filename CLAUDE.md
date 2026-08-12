@@ -32,9 +32,11 @@ Node 24. Windows-friendly (the original dev machine was Windows).
 src/app/          THIN routing only. Route files are 2-line re-exports of
                   module pages. (app) group = shell with registry-driven nav;
                   (auth) group = login/signup/onboarding.
-src/modules/      One folder per mini-app: home, sport, intersection, profile,
-                  _template (copy me). Each declares itself via module.ts
-                  (AppModule) and is listed in registry.ts.
+src/modules/      One folder per mini-app: home, calendar, sport,
+                  intersection, admin, profile, _template (copy me). Each
+                  declares itself via module.ts (AppModule) and is listed in
+                  registry.ts. `admin` owns no screens of its own — it lists
+                  every other module's adminPanels.
 src/core/         auth/ (provider, session middleware), db/ (browser/server/
                   admin clients + database.types.ts), permissions/, calendar/
                   (+ ics for the feed), notifications/ (targeting, quiet
@@ -85,7 +87,7 @@ branch + PR (`gh pr create`), conventional commits.
   `src/core/notifications/channels.ts`). The pipeline, targeting, quiet
   hours, and the in-app rows are real and tested; only the push transport is
   missing (v1.1). The stub documents exactly how to build it.
-- **The four feature modules are built** (phase two, docs/BUILD-LOG.md).
+- **The feature modules are built** (phase two, docs/BUILD-LOG.md).
   `docs/HANDOFF.md` is still the spec they were built to — read it before
   changing behaviour, and don't invent behaviour it already settles.
 - **Seed data is placeholder** except the 12 section names. It all lives in

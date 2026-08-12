@@ -12,7 +12,7 @@ import {
 
 export const metadata = { title: "Sports & reps" };
 
-// Declared as this module's admin panel, so it appears under Profile → Admin
+// Declared as this module's admin panel, so it appears on the Admin tab
 // tools for admins and sport reps. Admins get the catalogue; a rep gets a way
 // into their own sport's page, where their editing actually lives.
 export default async function SportAdminPage() {

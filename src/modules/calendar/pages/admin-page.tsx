@@ -14,7 +14,7 @@ export const metadata = { title: "Calendar" };
 // week's event, not so far that the list becomes an archive.
 const PAST_DAYS = 30;
 
-export default async function AdminCalendarPage() {
+export default async function CalendarAdminPage() {
   await requireRole("admin");
   const db = await createClient();
 
@@ -39,11 +39,11 @@ export default async function AdminCalendarPage() {
   return (
     <div className="space-y-4">
       <Link
-        href="/profile"
+        href="/admin"
         className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
       >
         <ChevronLeft className="size-4" aria-hidden />
-        Profile
+        Admin
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -52,7 +52,7 @@ export default async function AdminCalendarPage() {
           size="lg"
           className="h-11"
           nativeButton={false}
-          render={<Link href="/admin/calendar/new" />}
+          render={<Link href="/calendar/admin/new" />}
         >
           <Plus aria-hidden />
           New event

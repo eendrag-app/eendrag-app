@@ -5,7 +5,7 @@
 // - sport_rep: may edit exactly one sport (sports.rep_id), post its fixtures
 //              and results
 // - admin:     HK members — announcements, calendar, intersection admin,
-//              everything in Profile → Admin
+//              everything on the Admin tab
 export const ROLES = ["student", "sport_rep", "admin"] as const;
 
 export type Role = (typeof ROLES)[number];

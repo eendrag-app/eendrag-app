@@ -165,8 +165,8 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
-              Nobody runs this one yet. The HK appoints reps under Profile → Admin tools →
-              Sports &amp; reps.
+              Nobody runs this one yet. The HK appoints reps under Admin → Sports &amp;
+              reps.
             </p>
           )}
         </CardContent>

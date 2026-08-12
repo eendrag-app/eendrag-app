@@ -6,12 +6,12 @@ you're on predates phase two — ask whoever maintains the app to check
 docs/HANDOFF.md.
 
 Everything admin-related lives in one place: open the app → **Profile** →
-**Admin tools**. You only see this section if your account has the admin
+**Admin**. You only see this tab if your account has the admin
 role.
 
 ## Post an announcement
 
-1. Profile → Admin tools → **Announcements** → New announcement.
+1. Admin → **Announcements** → New announcement.
 2. Write a clear title (that's what the notification shows) and the body.
 3. Choose who it's for: **whole res**, or one section.
 4. Attach an image or PDF if needed (posters, menus, notices).
@@ -29,7 +29,7 @@ cannot tell you *who* opened it, and no amount of clicking will reveal that.
 
 ## Add something to the calendar
 
-Profile → Admin tools → **Calendar** → New event. Pick the category
+Admin → **Calendar** → New event. Pick the category
 (res-wide / section / social), the section if it's section-only, place, and
 time. It appears in everyone's calendar immediately and in their phone
 calendar if they subscribed to the feed.
@@ -42,7 +42,7 @@ never add those by hand, they'd just duplicate.
 Each sport has one rep. The rep can edit their own sport's page (practice
 times, venue, description), post fixtures and results — and nothing else.
 
-- **Appoint a rep:** Profile → Admin tools → Sports & reps → find the sport →
+- **Appoint a rep:** Admin → Sports & reps → find the sport →
   pick the person from the dropdown. They must have created an account first.
   That one action also gives them the sport-rep role, so there is nothing to
   do under Members.
@@ -56,7 +56,7 @@ times, venue, description), post fixtures and results — and nothing else.
 
 ## Run an intersection event
 
-Profile → Admin tools → **Intersection**:
+Admin → **Intersection**:
 
 1. **Create the event** (name, start date, rules text).
 2. **Generate draw** — the app makes 4 random groups of 3 and the full
@@ -90,7 +90,7 @@ needs to log in to view.
 
 ## Year-end: people leave, HK changes
 
-- **Deactivate leavers:** Profile → Admin tools → Members → set the person
+- **Deactivate leavers:** Admin → Members → set the person
   to inactive. They stop receiving notifications and lose any admin/rep
   rights. Don't delete accounts — history (announcements, results) should
   keep its authors.

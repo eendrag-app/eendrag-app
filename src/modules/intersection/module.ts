@@ -4,6 +4,7 @@ import type { AppModule } from "@/modules/types";
 const intersectionModule: AppModule = {
   id: "intersection",
   name: "Intersection",
+  shortName: "Inters", // "Intersection" does not fit six tabs on a phone
   icon: Trophy,
   navPlacement: "tab",
   order: 30,

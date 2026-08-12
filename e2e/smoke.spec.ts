@@ -50,11 +50,13 @@ test.describe("signed out", () => {
   test("the tab bar derives from the module registry", async ({ page }) => {
     await page.goto("/intersection");
     const nav = page.getByRole("navigation", { name: "Main" });
-    for (const tab of ["Home", "Sport", "Intersection", "Profile"]) {
+    for (const tab of ["Home", "Calendar", "Sport", "Intersection", "Profile"]) {
       await expect(nav.getByRole("link", { name: tab })).toBeVisible();
     }
     // The hidden template module must NOT appear.
     await expect(nav.getByRole("link", { name: "Template" })).toHaveCount(0);
+    // Neither must the admin tab, to someone who is not signed in at all.
+    await expect(nav.getByRole("link", { name: "Admin" })).toHaveCount(0);
   });
 
   test("an unknown calendar token is a 404, not a leak", async ({ request }) => {
@@ -70,11 +72,19 @@ test.describe("signed out", () => {
 });
 
 test.describe("signed in", () => {
-  test("the feed and the calendar are on the home page", async ({ page }) => {
+  test("the home page is the feed", async ({ page }) => {
     await signIn(page);
     // <input type="search"> is a searchbox, not a textbox.
     await expect(page.getByRole("searchbox", { name: "Search announcements" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+  });
+
+  test("the calendar is its own tab", async ({ page }) => {
+    await signIn(page);
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Calendar" }).click();
+    await expect(page).toHaveURL(/\/calendar$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Calendar" })).toBeVisible();
+    // The month grid, not just the heading.
+    await expect(page.getByRole("button", { name: "Next month" })).toBeVisible();
   });
 
   test("the bell opens and lists notifications", async ({ page }) => {
@@ -100,14 +110,13 @@ test.describe("signed in", () => {
     await expect(page.getByLabel("Your calendar feed address")).toHaveValue(/\.ics$/);
   });
 
-  test("the admin tools an HK member needs are all reachable", async ({ page }) => {
+  test("the admin tools an HK member needs are all on the admin tab", async ({ page }) => {
     await signIn(page);
-    await page.goto("/profile");
-    // Scoped to the Admin tools card — the tab bar also links to
-    // /intersection, and every panel is listed by its href.
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Admin" }).click();
+    await expect(page).toHaveURL(/\/admin$/);
     for (const href of [
       "/admin/announcements",
-      "/admin/calendar",
+      "/calendar/admin",
       "/sport/admin",
       "/intersection/admin",
       "/profile/members",

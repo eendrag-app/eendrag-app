@@ -12,7 +12,7 @@ about fifteen minutes.
 
 By registering, a module automatically appears in: the tab bar (if
 `navPlacement: "tab"`), the notification-settings UI (its
-`notificationCategories`), Profile → Admin (its `adminPanels`), and auth
+`notificationCategories`), the Admin tab (its `adminPanels`), and auth
 gating (`requiresAuth`). You never edit the nav, the settings page, or the
 admin list.
 
@@ -62,7 +62,7 @@ export default roompointsModule;
 ```ts
 import roompoints from "@/modules/roompoints/module";
 
-export const modules: AppModule[] = [home, sport, intersection, profile, roompoints, template];
+export const modules: AppModule[] = [home, calendar, sport, intersection, admin, profile, roompoints, template];
 ```
 
 (Two physical lines with the import — the array entry is the registration.)
@@ -151,6 +151,6 @@ roompoints is an ESLint error, and the ESLint rule is the architecture.
 - [ ] Migration with RLS on every new table, block claimed in the README,
       `npm run db:push` + `npm run db:types` run
 - [ ] `npm run check` green (typecheck, lint incl. boundaries, tests)
-- [ ] If it has admin surfaces: entry appears under Profile → Admin (free,
+- [ ] If it has admin surfaces: entry appears on the Admin tab (free,
       via `adminPanels`)
 - [ ] docs/BUILD-LOG.md updated with what's real vs. placeholder
