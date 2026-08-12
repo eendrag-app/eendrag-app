@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Mail, MapPin, Trophy, Users } from "lucide-react";
+import { ChevronLeft, Mail, MapPin, Phone, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
@@ -9,7 +9,7 @@ import { formatDateTime, relativeTime, toLocalInput } from "@/core/ui/format";
 import { SectionBadge } from "@/core/ui/section-badge";
 import { FixtureList, type FixtureItem } from "../components/fixture-list";
 import { ResultList, type ResultItem } from "../components/result-list";
-import { SignupButton } from "../components/signup-button";
+import { GoingButton } from "../components/going-button";
 import { SportDetailsForm } from "../components/sport-details-form";
 
 export const metadata = { title: "Sport" };
@@ -30,7 +30,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
     // sports!rep_id is named explicitly: sport_signups points at both sports
     // and profiles, which makes a bare `profiles(...)` embed ambiguous.
     .select(
-      "id, name, description, practice_info, venue, coach, is_active, rep_id, rep:profiles!sports_rep_id_fkey(id, full_name, email, section:sections(name))",
+      "id, name, description, practice_info, venue, coach, is_active, rep_id, rep_name, rep_phone, rep_email, rep:profiles!sports_rep_id_fkey(id, full_name, email, section:sections(name))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -102,6 +102,13 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
   // The query is already newest-first, so the headline is simply the first.
   const latest = recent[0];
 
+  // The rep's contact details are whatever the HK typed. Fall back to the
+  // linked account only where the field was left blank, so a rep who has
+  // signed up still shows a name rather than an empty card.
+  const repName = sport.rep_name || sport.rep?.full_name || sport.rep?.email || "";
+  const repEmail = sport.rep_email || sport.rep?.email || "";
+  const repPhone = sport.rep_phone;
+
   return (
     <div className="space-y-4">
       <Link
@@ -159,7 +166,11 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
             <p className="pt-1 text-sm whitespace-pre-line">{sport.description}</p>
           )}
           <div className="pt-2">
-            <SignupButton sportId={sport.id} signedUp={Boolean(mySignup.data)} />
+            <GoingButton
+              sportId={sport.id}
+              going={Boolean(mySignup.data)}
+              goingCount={signups.data?.length ?? 0}
+            />
           </div>
         </CardContent>
       </Card>
@@ -169,24 +180,41 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
           <CardTitle>Rep</CardTitle>
         </CardHeader>
         <CardContent>
-          {sport.rep ? (
+          {repName || repEmail || repPhone ? (
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{sport.rep.full_name || sport.rep.email}</p>
-                {sport.rep.section && (
+                <p className="text-sm font-medium">{repName}</p>
+                {sport.rep?.section && (
                   <SectionBadge name={sport.rep.section.name} className="mt-1" />
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-11"
-                nativeButton={false}
-                render={<a href={`mailto:${sport.rep.email}`} />}
-              >
-                <Mail aria-hidden />
-                Email the rep
-              </Button>
+              {/* Phone first: a rep is far more likely to be WhatsApped than
+                  emailed, and tel: opens the dialler where the number is
+                  already selectable. */}
+              {repPhone && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-11"
+                  nativeButton={false}
+                  render={<a href={`tel:${repPhone.replace(/\s+/g, "")}`} />}
+                >
+                  <Phone aria-hidden />
+                  {repPhone}
+                </Button>
+              )}
+              {repEmail && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-11"
+                  nativeButton={false}
+                  render={<a href={`mailto:${repEmail}`} />}
+                >
+                  <Mail aria-hidden />
+                  Email the rep
+                </Button>
+              )}
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">

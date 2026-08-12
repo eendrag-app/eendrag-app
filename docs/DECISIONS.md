@@ -554,3 +554,52 @@ button.
   looking at, is a hole with no upside.
 - **Nothing deletes the storage object when a post is deleted.** Same as
   images and PDFs today; noted in docs/BUILD-LOG.md rather than pretended away.
+
+## 2026-08-12 — Reps are appointed by typing an email, not by picking an account
+
+**Decision:** the HK types a rep's name, phone number and student email.
+`sports.rep_email` is a claim ticket; `rep_id` is still the only thing that
+grants permission, and `app_is_rep_of()` is untouched.
+
+**Alternatives:** keep the dropdown of existing accounts; authorise directly
+on the email.
+
+**Why not the dropdown.** It could only appoint someone who had already signed
+up, which is backwards — the HK knows who runs hockey long before that person
+opens the app. Now either order works: if the address already has an account
+the server action links it immediately, and if it does not, the
+`app_handle_new_user` trigger (0403) claims the sport the moment they sign up.
+
+**Why not authorise on the email directly.** `profiles.email` is editable by
+its owner — policy `profiles_update_own` in 0100, and the privilege guard
+covers only `role` and `is_active`. A student could set their own email to the
+hockey rep's address and inherit the sport. Matching happens once, against the
+address Supabase actually verified in `auth.users`, and the result is written
+to `rep_id`.
+
+**The hole 0403 opened, closed in 0404.** `sports_update_admin_or_own_rep`
+lets a rep edit their own sport's row, and the guard only blocked `rep_id`.
+With `rep_email` added, a rep could point it at a friend, who would inherit
+the sport on signup — a rep appointing their own successor. `rep_email` is now
+guarded exactly like `rep_id`. `rep_name` and `rep_phone` are deliberately
+left open: they are the contact card, and a rep fixing their own phone number
+without filing a request with the HK is a feature.
+
+Verified against the live project, as the rep: practice info and phone number
+still editable, `rep_email` and `rep_id` both refused with *"only admins may
+assign sport reps"*.
+
+## 2026-08-12 — "I'm going" says how many
+
+**Decision:** the sport sign-up button reads "I'm going" and carries a count
+of everyone who has pressed it.
+
+**Why.** Pressing a button into silence tells you nothing, and whether a
+practice is worth walking to depends entirely on whether anyone else is
+coming. Button and count move optimistically together and roll back together
+— a count that disagrees with the button is worse than a slow one.
+
+**What it counts.** Rows in `sport_signups`, which is also what the squad list
+is built from: people interested in the sport, **not** attendance at a
+particular fixture. If the res wants per-fixture attendance ("who is coming to
+Saturday's game?") that is a different table and a different feature.

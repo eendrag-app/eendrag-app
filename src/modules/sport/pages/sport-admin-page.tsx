@@ -4,11 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { createClient } from "@/core/db/server";
 import { requireRole } from "@/core/permissions";
 import { EmptyState } from "@/core/ui/empty-state";
-import {
-  SportAdminList,
-  type AdminSport,
-  type RepCandidate,
-} from "../components/sport-admin-list";
+import { SportAdminList, type AdminSport } from "../components/sport-admin-list";
 
 export const metadata = { title: "Sports & reps" };
 
@@ -22,30 +18,21 @@ export default async function SportAdminPage() {
 
   const { data: sports } = await db
     .from("sports")
-    .select("id, name, is_active, rep_id")
+    .select("id, name, is_active, rep_id, rep_name, rep_phone, rep_email")
     .order("name");
 
   const mine = (sports ?? []).filter((s) => s.rep_id === profile.id);
 
-  // Reps have to be real accounts; inactive ones are hidden so a leaver
-  // cannot be appointed.
-  const { data: people } = isAdmin
-    ? await db
-        .from("profiles")
-        .select("id, full_name, email")
-        .eq("is_active", true)
-        .order("full_name")
-    : { data: [] };
-
-  const candidates: RepCandidate[] = (people ?? []).map((p) => ({
-    id: p.id,
-    label: p.full_name || p.email,
-  }));
   const rows: AdminSport[] = (sports ?? []).map((s) => ({
     id: s.id,
     name: s.name,
     isActive: s.is_active,
-    repId: s.rep_id,
+    repName: s.rep_name,
+    repPhone: s.rep_phone,
+    repEmail: s.rep_email,
+    // rep_id is only set once the email matches a real account — that is the
+    // moment the rep can actually edit anything.
+    repLinked: s.rep_id !== null,
   }));
 
   return (
@@ -65,12 +52,13 @@ export default async function SportAdminPage() {
             <CardTitle>The catalogue</CardTitle>
             <CardDescription>
               Pausing a sport hides it from the Sport tab without losing its fixtures or
-              results. Appointing a rep also gives that person the sport-rep role; they then
-              edit practice times, fixtures and results on the sport&apos;s own page.
+              results. Type the rep&apos;s name and number for the contact card; their student
+              email is what lets them edit practice times, fixtures and results on the
+              sport&apos;s own page. You can appoint someone before they have an account.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SportAdminList sports={rows} people={candidates} />
+            <SportAdminList sports={rows} />
           </CardContent>
         </Card>
       ) : (
