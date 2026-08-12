@@ -191,6 +191,42 @@ What is Supabase-specific and would need attention in a bare-Postgres world
 uploads), and the `auth.users` trigger in `0100_core_init.sql`. Everything
 else is plain Postgres.
 
+## Installing the app ("Get app")
+
+Eendrag is a **progressive web app**: the same site, installable to a home
+screen. Three files do all of it and there is no build plugin involved —
+
+| File | What it is |
+| --- | --- |
+| `src/app/manifest.ts` | name, icons, colours, `display: standalone` |
+| `public/sw.js` | the service worker: a fetch passthrough, plus the push handlers |
+| `src/core/pwa/install.tsx` | the "Get app" button and the iOS instructions |
+| `scripts/generate-icons.mjs` | regenerates `public/icons/*` — run and commit if the mark or colours change |
+
+**Android, Chrome, Edge, desktop Chrome:** the browser fires
+`beforeinstallprompt` once it decides the app qualifies (manifest + a service
+worker with a fetch handler + https). The button replays that event, so people
+get the browser's own install dialog.
+
+**iPhone:** Apple provides no install API at all. The button opens a sheet
+explaining Share → Add to Home Screen. This is not cosmetic — **an iPhone will
+not deliver web push until the app has been added to the home screen**, so on
+iOS "install the app" and "turn on notifications" are the same instruction.
+
+Both surfaces disappear once the app is installed (`display-mode: standalone`).
+
+**The service worker caches nothing, deliberately.** A stale cache in an
+announcement app means someone reads yesterday's notice about tonight's
+meeting. It exists because installability requires a fetch handler and because
+push is only delivered to a service worker. If you ever add caching there, do
+not cache HTML documents or anything under `/api`, and bump `CACHE_VERSION`.
+
+**If installing stops being offered**, check in this order: the site is on
+https (localhost counts), `/manifest.webmanifest` returns 200, `/sw.js`
+returns 200 with a JavaScript content type, and the icons in the manifest all
+resolve. Chrome's DevTools → Application → Manifest lists whatever it is
+unhappy about.
+
 ## Scheduled work
 
 One endpoint does all of it: **`GET /api/cron/tick`**. Every tick

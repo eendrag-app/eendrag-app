@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { loadInbox } from "@/core/ui/inbox";
 import { NotificationBell } from "@/core/ui/notification-bell";
+import { InstallButton } from "@/core/pwa/install";
+import { ServiceWorker } from "@/core/pwa/service-worker";
 import { ThemeToggle } from "@/core/ui/theme";
 import { getProfile, type Role } from "@/core/permissions";
 import { ModuleNav } from "./module-nav";
@@ -34,6 +36,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
           <ModuleNav role={(profile?.role as Role | undefined) ?? null} />
           <div className="on-header ml-auto flex items-center gap-0.5">
+            {/* Renders nothing once the app is installed, or in a browser that
+                cannot install it. */}
+            <InstallButton className="mr-1" />
             {inbox ? (
               <NotificationBell initial={inbox} />
             ) : (
@@ -46,6 +51,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 pt-4 pb-24 sm:pb-10">{children}</main>
+      <ServiceWorker />
     </div>
   );
 }

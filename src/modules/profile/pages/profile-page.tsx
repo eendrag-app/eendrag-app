@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
+import { InstallCard } from "@/core/pwa/install";
 import { requireProfile, type Role } from "@/core/permissions";
 import { siteOrigin } from "@/core/site";
 import { SectionBadge } from "@/core/ui/section-badge";
@@ -90,6 +91,9 @@ export default async function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Renders nothing once the app is installed. */}
+      <InstallCard />
 
       <Card>
         <CardHeader>

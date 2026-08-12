@@ -9,14 +9,18 @@ import { moduleForPath } from "@/modules/registry";
 const ALWAYS_PUBLIC = ["/login", "/signup", "/auth"];
 
 export async function middleware(request: NextRequest) {
-  const { response, user } = await updateSession(request);
+  // `maybeSignedIn` is `user !== null` plus one deliberate exception: a request
+  // that carries a session cookie we could not verify because Supabase was
+  // unreachable. Bouncing those to the login page is how a wifi hiccup turns
+  // into "the app logged me out again" — see core/auth/middleware.ts.
+  const { response, maybeSignedIn } = await updateSession(request);
 
   const path = request.nextUrl.pathname;
   const isPublicPage = ALWAYS_PUBLIC.some((p) => path === p || path.startsWith(p + "/"));
   // Unrouted paths 404 on their own; treat them as not-protected.
   const needsAuth = moduleForPath(path)?.requiresAuth ?? false;
 
-  if (!user && needsAuth && !isPublicPage) {
+  if (!maybeSignedIn && needsAuth && !isPublicPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);
