@@ -36,9 +36,29 @@ test.describe("signed out", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 
-  test("player stats are public too", async ({ page }) => {
-    await page.goto("/intersection/players");
-    await expect(page.getByRole("heading", { name: "Player stats" })).toBeVisible();
+  test("the retired player-stats page is gone, not broken", async ({ page }) => {
+    // Rosters and the individual leaderboard were dropped in favour of what
+    // the res actually competes over. An old link should 404 rather than
+    // error against tables that no longer exist.
+    const response = await page.goto("/intersection/players");
+    expect(response?.status()).toBe(404);
+  });
+
+  test("every group table is laid out the same way", async ({ page }) => {
+    await page.goto("/intersection");
+    await page.locator('a[href^="/intersection/events/"]').first().click();
+    // Wait for the event page itself: counting straight after the click
+    // counts the page being navigated away from, which has no tables.
+    await expect(page).toHaveURL(/\/intersection\/events\//);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const tables = page.locator("main table");
+    const count = await tables.count();
+    test.skip(count === 0, "no event with a draw yet");
+    // Auto layout sized each group's columns from its own longest section
+    // name, so P and W landed somewhere different on every card.
+    for (let i = 0; i < count; i++) {
+      await expect(tables.nth(i)).toHaveClass(/table-fixed/);
+    }
   });
 
   test("home redirects signed-out visitors to login", async ({ page }) => {
@@ -99,7 +119,19 @@ test.describe("signed in", () => {
     const firstSport = page.locator('a[href^="/sport/"]').first();
     await expect(firstSport).toBeVisible();
     await firstSport.click();
-    await expect(page.getByRole("heading", { name: "Practice" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Next practice" })).toBeVisible();
+    // The squad list is gone; the going count is what answers "who is coming".
+    await expect(page.getByRole("heading", { name: "Squad" })).toHaveCount(0);
+  });
+
+  test("a rep's sport page is where the editing lives, not the admin tab", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/sport/admin");
+    // Admins still get the catalogue. What must NOT be here is a second way
+    // to edit a sport: that belongs on the sport's own page.
+    await expect(page.getByRole("heading", { level: 1, name: "Sports & reps" })).toBeVisible();
+    // Back goes to Admin, not Profile — the same for every admin tool.
+    await expect(page.locator('a[href="/admin"]').first()).toBeVisible();
   });
 
   test("profile shows the settings a student needs", async ({ page }) => {
