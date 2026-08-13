@@ -10,9 +10,13 @@ import type { AppModule } from "@/modules/types";
 // `adminPanels` every other module declares, which is why adding an admin page
 // to a module still means editing exactly one file — that module's module.ts.
 //
-// `roles` is what keeps the tab off a student's screen: the nav filters by it.
-// It is a convenience, not a gate — every admin page calls requireRole and RLS
-// refuses the writes regardless.
+// `roles` is what keeps the tab off everyone else's screen: the nav filters by
+// it. It is a convenience, not a gate — every admin page calls requireRole and
+// RLS refuses the writes regardless.
+//
+// HK only. Sport reps had this tab until 2026-08-13 and it only ever gave them
+// a signpost back to their own sport's page, where their editing actually
+// happens (docs/DECISIONS.md).
 const adminModule: AppModule = {
   id: "admin",
   name: "Admin",
@@ -21,7 +25,7 @@ const adminModule: AppModule = {
   order: 35, // last but one, just before Profile
   basePath: "/admin",
   requiresAuth: true,
-  roles: ["admin", "sport_rep"],
+  roles: ["admin"],
 };
 
 export default adminModule;

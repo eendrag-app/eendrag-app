@@ -2,6 +2,7 @@
 
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { removeModuleEvent, upsertModuleEvent } from "@/core/calendar";
 import { createClient } from "@/core/db/server";
@@ -11,7 +12,13 @@ import { formatDateTime, fromLocalInput } from "@/core/ui/format";
 import { calendarTitle, positionMove, resultHeadline } from "./lib/copy";
 import { canClearResult, canEditGroups, canEditTeams, canRegenerateDraw } from "./lib/guards";
 import { loadEvent, loadEvents, loadPoints, loadSections, type LoadedEvent } from "./lib/load";
-import { generateDraw, leaderboard, recalc, type LeaderboardRow } from "./lib/tournament";
+import {
+  generateDraw,
+  leaderboard,
+  needsTieBreak,
+  recalc,
+  type LeaderboardRow,
+} from "./lib/tournament";
 
 // Everything that writes to the competition. Admin-only, twice: requireRole
 // here and `for all to authenticated using (app_is_admin())` on every
@@ -316,6 +323,75 @@ export async function swapGroupTeam(eventId: string, groupId: string, slot: numb
   return { ok: true as const };
 }
 
+/**
+ * Record who goes through from a group the results could not split.
+ *
+ * Only ever offered for a genuine three-way tie (`needsTieBreak`), and checked
+ * again here rather than trusted from the form: this is the one place an admin
+ * could otherwise hand-pick qualifiers out of a group somebody actually won.
+ *
+ * Passing an empty first/second clears the decision, which puts the two
+ * knockout slots back to empty.
+ */
+export async function setGroupTieBreak(
+  eventId: string,
+  groupId: string,
+  firstSectionId: string,
+  secondSectionId: string,
+) {
+  await requireRole("admin");
+  const clearing = firstSectionId === "" && secondSectionId === "";
+  const parsed = z
+    .object({
+      eventId: z.uuid(),
+      groupId: z.uuid(),
+      firstSectionId: z.union([z.uuid(), z.literal("")]),
+      secondSectionId: z.union([z.uuid(), z.literal("")]),
+    })
+    .safeParse({ eventId, groupId, firstSectionId, secondSectionId });
+  if (!parsed.success) return { ok: false as const, error: "That is not a valid choice" };
+  if (!clearing && parsed.data.firstSectionId === parsed.data.secondSectionId) {
+    return { ok: false as const, error: "Pick two different sections" };
+  }
+  if (!clearing && (parsed.data.firstSectionId === "" || parsed.data.secondSectionId === "")) {
+    return { ok: false as const, error: "Pick both the winner and the runner-up" };
+  }
+
+  const event = await loadEvent(parsed.data.eventId);
+  if (!event) return { ok: false as const, error: "Unknown event" };
+  const group = event.groups.find((g) => g.id === parsed.data.groupId);
+  if (!group) return { ok: false as const, error: "Unknown group" };
+  if (!needsTieBreak(group, event.matches)) {
+    return {
+      ok: false as const,
+      error: `Group ${group.name} is not level — the results decide who goes through`,
+    };
+  }
+  if (
+    !clearing &&
+    !(
+      group.sectionIds.includes(parsed.data.firstSectionId) &&
+      group.sectionIds.includes(parsed.data.secondSectionId)
+    )
+  ) {
+    return { ok: false as const, error: `Both sections have to be in group ${group.name}` };
+  }
+
+  const db = await createClient();
+  const { error } = await db
+    .from("intersection_groups")
+    .update({
+      first_section_id: clearing ? null : parsed.data.firstSectionId,
+      second_section_id: clearing ? null : parsed.data.secondSectionId,
+    })
+    .eq("id", parsed.data.groupId);
+  if (error) return { ok: false as const, error: "Could not save that" };
+
+  await recalcAndPersist(parsed.data.eventId);
+  revalidateEvent(parsed.data.eventId);
+  return { ok: true as const };
+}
+
 // --- results ----------------------------------------------------------------
 
 const resultInput = z.object({
@@ -353,7 +429,9 @@ export async function setResult(matchId: string, winnerSectionId: string, note: 
   if (error) return { ok: false as const, error: "Could not save the result" };
 
   const event = await recalcAndPersist(row.event_id);
-  const after = await currentLeaderboard();
+  // Named for what it is, not just "after": `after` itself is now the
+  // post-response scheduler imported at the top of this file.
+  const afterBoard = await currentLeaderboard();
 
   const sections = await loadSections();
   const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
@@ -364,24 +442,34 @@ export async function setResult(matchId: string, winnerSectionId: string, note: 
 
   // One notification per involved section, each "about" that section so
   // section-only mode lets it through.
-  for (const sectionId of [parsed.data.winnerSectionId, loserId]) {
-    if (!sectionId) continue;
-    const move = positionMove(before, after, sectionId);
-    await notify({
-      category: "intersection",
-      title: resultHeadline(
-        nameOf(parsed.data.winnerSectionId),
-        nameOf(loserId ?? ""),
-        event?.name ?? "Intersection",
-      ),
-      body: [parsed.data.note, move].filter(Boolean).join(" · "),
-      url: `/intersection/events/${row.event_id}`,
-      sourceModule: MODULE,
-      sourceRef: parsed.data.matchId,
-      audience: { kind: "section", sectionId },
-      aboutSectionId: sectionId,
-    });
-  }
+  //
+  // SENT AFTER THE RESPONSE, not before it. Each notify() resolves the
+  // recipients, writes a row per person and then pushes to every subscribed
+  // device over the network — two of those, in series, is seconds of an admin
+  // sitting on a results screen watching nothing happen while they capture a
+  // whole event's fixtures. The result itself is already saved and the bracket
+  // already recalculated by the time this is queued; nothing the admin sees
+  // depends on it (docs/DECISIONS.md).
+  after(async () => {
+    for (const sectionId of [parsed.data.winnerSectionId, loserId]) {
+      if (!sectionId) continue;
+      const move = positionMove(before, afterBoard, sectionId);
+      await notify({
+        category: "intersection",
+        title: resultHeadline(
+          nameOf(parsed.data.winnerSectionId),
+          nameOf(loserId ?? ""),
+          event?.name ?? "Intersection",
+        ),
+        body: [parsed.data.note, move].filter(Boolean).join(" · "),
+        url: `/intersection/events/${row.event_id}`,
+        sourceModule: MODULE,
+        sourceRef: parsed.data.matchId,
+        audience: { kind: "section", sectionId },
+        aboutSectionId: sectionId,
+      });
+    }
+  });
 
   revalidateEvent(row.event_id);
   return { ok: true as const };
@@ -505,22 +593,27 @@ export async function setMatchTime(matchId: string, scheduledAt: string) {
   const match = event?.matches.find((m) => m.id === parsed.data);
   const changed = (row.scheduled_at ?? "") !== (when?.toISOString() ?? "");
   if (when && changed && match) {
-    const sections = await loadSections();
-    const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
-    for (const sectionId of [match.teamAId, match.teamBId]) {
-      if (!sectionId) continue;
-      const other = sectionId === match.teamAId ? match.teamBId : match.teamAId;
-      await notify({
-        category: "intersection",
-        title: `${event?.name}: you play ${other ? nameOf(other) : "the winner of an earlier game"}`,
-        body: formatDateTime(when),
-        url: `/intersection/events/${row.event_id}`,
-        sourceModule: MODULE,
-        sourceRef: parsed.data,
-        audience: { kind: "section", sectionId },
-        aboutSectionId: sectionId,
-      });
-    }
+    // Queued behind the response for the same reason as setResult: setting
+    // times means one write after another, and nothing on the admin's screen
+    // waits on the push going out.
+    after(async () => {
+      const sections = await loadSections();
+      const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
+      for (const sectionId of [match.teamAId, match.teamBId]) {
+        if (!sectionId) continue;
+        const other = sectionId === match.teamAId ? match.teamBId : match.teamAId;
+        await notify({
+          category: "intersection",
+          title: `${event?.name}: you play ${other ? nameOf(other) : "the winner of an earlier game"}`,
+          body: formatDateTime(when),
+          url: `/intersection/events/${row.event_id}`,
+          sourceModule: MODULE,
+          sourceRef: parsed.data,
+          audience: { kind: "section", sectionId },
+          aboutSectionId: sectionId,
+        });
+      }
+    });
   }
 
   revalidateEvent(row.event_id);

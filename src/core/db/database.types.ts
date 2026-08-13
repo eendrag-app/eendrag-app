@@ -273,18 +273,24 @@ export type Database = {
       intersection_groups: {
         Row: {
           event_id: string
+          first_section_id: string | null
           id: string
           name: string
+          second_section_id: string | null
         }
         Insert: {
           event_id: string
+          first_section_id?: string | null
           id?: string
           name: string
+          second_section_id?: string | null
         }
         Update: {
           event_id?: string
+          first_section_id?: string | null
           id?: string
           name?: string
+          second_section_id?: string | null
         }
         Relationships: [
           {
@@ -292,6 +298,20 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "intersection_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intersection_groups_first_section_id_fkey"
+            columns: ["first_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intersection_groups_second_section_id_fkey"
+            columns: ["second_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
             referencedColumns: ["id"]
           },
         ]

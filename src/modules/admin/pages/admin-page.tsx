@@ -10,15 +10,14 @@ export const metadata = { title: "Admin" };
 // module that declares an adminPanel appears here for free; nothing about any
 // particular module is written down in this file.
 export default async function AdminPage() {
-  const profile = await requireRole("admin", "sport_rep");
+  const profile = await requireRole("admin");
   const panels = allAdminPanels().filter((p) => p.roles.includes(profile.role as Role));
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Admin</h1>
       <p className="text-muted-foreground -mt-2 text-sm">
-        You see this tab because you are{" "}
-        {profile.role === "admin" ? "on the HK" : "a sport rep"}.
+        You see this tab because you are on the HK.
       </p>
 
       {panels.length === 0 ? (

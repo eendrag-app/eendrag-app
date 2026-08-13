@@ -372,17 +372,45 @@ export async function createSport(formData: FormData) {
   return { ok: true as const };
 }
 
-export async function setSportActive(sportId: string, isActive: boolean) {
+/**
+ * Remove a sport from the catalogue, admin only (`sports_admin_delete`).
+ *
+ * The database cascades the fixtures, results, sign-ups and everyone's
+ * "sports I play" rows. What it cannot reach is the shared calendar: those
+ * events are mirrors keyed on (source_module, source_ref), not foreign keys,
+ * so every fixture's entry is removed by hand FIRST — after the sport is gone
+ * the fixture ids are unknowable and the calendar would keep advertising games
+ * for a sport that no longer exists.
+ */
+export async function deleteSport(sportId: string) {
   await requireRole("admin");
   const parsed = z.uuid().safeParse(sportId);
   if (!parsed.success) return { ok: false as const, error: "Unknown sport" };
 
   const db = await createClient();
-  const { error } = await db.from("sports").update({ is_active: isActive }).eq("id", parsed.data);
-  if (error) return { ok: false as const, error: "Could not change that" };
+  const { data: fixtures } = await db
+    .from("sport_fixtures")
+    .select("id")
+    .eq("sport_id", parsed.data);
+  for (const fixture of fixtures ?? []) {
+    await removeModuleEvent(MODULE, fixture.id);
+  }
+
+  const { data, error } = await db
+    .from("sports")
+    .delete()
+    .eq("id", parsed.data)
+    .select("id");
+  if (error) return { ok: false as const, error: "Could not delete that sport" };
+  // RLS answers a refused delete with zero rows, not an error.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: "Only the HK can delete a sport" };
+  }
 
   revalidatePath("/sport");
   revalidatePath("/sport/admin");
+  revalidatePath("/calendar");
+  revalidatePath("/");
   return { ok: true as const };
 }
 

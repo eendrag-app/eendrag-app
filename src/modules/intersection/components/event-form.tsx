@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DateTimePicker } from "@/core/ui/date-time-picker";
 import { saveEvent } from "../actions";
 
 export function EventForm({
@@ -15,6 +16,7 @@ export function EventForm({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState(values.startDate);
 
   async function onSubmit(formData: FormData) {
     setBusy(true);
@@ -43,12 +45,16 @@ export function EventForm({
       </div>
       <div className="space-y-1">
         <Label htmlFor="startDate">Date</Label>
-        <Input
+        {/* The picker is the control; the hidden input is what the form
+            actually submits, so saveEvent still reads a plain "2026-09-01". */}
+        <input type="hidden" name="startDate" value={startDate} />
+        <DateTimePicker
           id="startDate"
-          name="startDate"
-          type="date"
-          defaultValue={values.startDate}
-          className="h-11 w-48"
+          label="When is the event?"
+          mode="date"
+          value={startDate}
+          onChange={setStartDate}
+          className="w-full sm:w-72"
         />
       </div>
       <div className="space-y-1">
