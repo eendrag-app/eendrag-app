@@ -8,6 +8,18 @@ export function fixtureTitle(sportName: string, opponent: string): string {
   return other === "" ? sportName : `${sportName} vs ${other}`;
 }
 
+/**
+ * What a result is called, worked out from the fixture it came from.
+ *
+ * A result is now always the far end of a fixture, so the opponent and the
+ * date are already known and nobody retypes them: the rep enters a score and
+ * nothing else.
+ */
+export function resultSummary(opponent: string): string {
+  const other = opponent.trim();
+  return other === "" ? "Played" : `v ${other}`;
+}
+
 /** "Hockey: beat Helshoogte 3–1" — the auto-announcement's title. */
 export function resultTitle(sportName: string, summary: string, score: string): string {
   const tail = score.trim() === "" ? "" : ` ${score.trim()}`;
