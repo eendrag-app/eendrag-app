@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Clock, Pencil, RotateCcw } from "lucide-react";
+import { Pencil, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateTimePicker } from "@/core/ui/date-time-picker";
 import { clearResult, setMatchTeams, setMatchTime, setResult } from "../actions";
 
 export interface AdminMatch {
@@ -49,6 +50,12 @@ export function MatchAdmin({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editingTeams, setEditingTeams] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // Winners the admin has picked but the server has not confirmed yet. The
+  // dropdown used to show whatever the last server render said, so choosing a
+  // winner appeared to do nothing until the whole write — recalculated
+  // bracket, notifications and all — came back. The pick shows immediately and
+  // is dropped again if the write is refused.
+  const [pending, setPending] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
 
   const sectionItems = sections.map((s) => ({ value: s.id, label: s.name }));
@@ -59,14 +66,21 @@ export function MatchAdmin({
   // here more than elsewhere: nearly everything on this screen — which results
   // can still be cleared, whether the draw can be redone — is recomputed by
   // the server from the guards after every write.
-  function run(id: string, work: () => Promise<{ ok: boolean; error?: string }>) {
+  function run(
+    id: string,
+    work: () => Promise<{ ok: boolean; error?: string }>,
+    onFailure?: () => void,
+  ) {
     setBusyId(id);
     setError(null);
     startTransition(async () => {
       const result = await work();
       setBusyId(null);
       if (result.ok) setEditingTeams(null);
-      else setError(result.error ?? "That did not work");
+      else {
+        setError(result.error ?? "That did not work");
+        onFailure?.();
+      }
     });
   }
 
@@ -76,6 +90,7 @@ export function MatchAdmin({
       <ul className="divide-y">
         {matches.map((match) => {
           const note = notes[match.id] ?? match.note;
+          const winnerId = pending[match.id] ?? match.winnerId ?? "";
           return (
             <li key={match.id} className="space-y-2 py-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -96,7 +111,7 @@ export function MatchAdmin({
                     Winner
                   </Label>
                   <Select
-                    value={match.winnerId ?? ""}
+                    value={winnerId}
                     items={[match.teamAId, match.teamBId]
                       .filter((id): id is string => Boolean(id))
                       .map((id) => ({
@@ -104,9 +119,20 @@ export function MatchAdmin({
                         label: sections.find((s) => s.id === id)?.name ?? "Unknown",
                       }))}
                     disabled={!match.teamAId || !match.teamBId}
-                    onValueChange={(value) =>
-                      run(match.id, () => setResult(match.id, String(value), note))
-                    }
+                    onValueChange={(value) => {
+                      const picked = String(value);
+                      setPending((prev) => ({ ...prev, [match.id]: picked }));
+                      run(
+                        match.id,
+                        () => setResult(match.id, picked, note),
+                        () =>
+                          setPending((prev) => {
+                            const next = { ...prev };
+                            delete next[match.id];
+                            return next;
+                          }),
+                      );
+                    }}
                   >
                     <SelectTrigger
                       id={`winner-${match.id}`}
@@ -147,15 +173,13 @@ export function MatchAdmin({
 
                 <div className="space-y-1">
                   <Label htmlFor={`time-${match.id}`} className="text-xs">
-                    <Clock className="mr-1 inline size-3" aria-hidden />
-                    Time
+                    When
                   </Label>
-                  <Input
+                  <DateTimePicker
                     id={`time-${match.id}`}
-                    type="datetime-local"
-                    defaultValue={match.scheduledInput}
-                    className="h-11"
-                    onChange={(e) => run(match.id, () => setMatchTime(match.id, e.target.value))}
+                    label={`When is ${match.label}?`}
+                    value={match.scheduledInput}
+                    onChange={(next) => run(match.id, () => setMatchTime(match.id, next))}
                   />
                 </div>
               </div>

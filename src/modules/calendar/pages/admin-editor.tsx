@@ -7,8 +7,16 @@ import { requireRole } from "@/core/permissions";
 import { toLocalInput } from "@/core/ui/format";
 import { EventForm } from "../components/event-form";
 
+/** A query string is anybody's to type — only a real day-key gets used. */
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 // Shared by /calendar/admin/new and /calendar/admin/[id].
-export async function CalendarEditor({ id }: { id?: string }) {
+//
+// `day` ("2026-08-20") comes from "Add on this day" on the month grid: the
+// admin already said which day they meant by tapping it, and being made to
+// pick it again in the date field is the kind of small stupidity that makes
+// people stop using the calendar.
+export async function CalendarEditor({ id, day }: { id?: string; day?: string }) {
   await requireRole("admin");
   const db = await createClient();
 
@@ -53,7 +61,11 @@ export async function CalendarEditor({ id }: { id?: string }) {
               category: existing?.category ?? "res_wide",
               sectionId: existing?.section_id ?? "",
               location: existing?.location ?? "",
-              startsAt: existing?.starts_at ? toLocalInput(existing.starts_at) : "",
+              startsAt: existing?.starts_at
+                ? toLocalInput(existing.starts_at)
+                : DAY_PATTERN.test(day ?? "")
+                  ? `${day}T18:00`
+                  : "",
               endsAt: existing?.ends_at ? toLocalInput(existing.ends_at) : "",
             }}
           />

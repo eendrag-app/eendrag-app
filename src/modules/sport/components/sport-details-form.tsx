@@ -48,7 +48,7 @@ export function SportDetailsForm({
       <input type="hidden" name="sportId" value={sportId} />
 
       <div className="space-y-1">
-        <Label htmlFor="practiceInfo">Practice</Label>
+        <Label htmlFor="practiceInfo">Next practice</Label>
         <Input
           id="practiceInfo"
           name="practiceInfo"
@@ -75,7 +75,7 @@ export function SportDetailsForm({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="description">Who is it for</Label>
+        <Label htmlFor="description">Details</Label>
         <Textarea
           id="description"
           name="description"

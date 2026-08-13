@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Mail, MapPin, Phone, Trophy, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
 import { requireProfile } from "@/core/permissions";
@@ -9,7 +8,7 @@ import { formatDateTime, relativeTime, toLocalInput } from "@/core/ui/format";
 import { SectionBadge } from "@/core/ui/section-badge";
 import { FixtureList, type FixtureItem } from "../components/fixture-list";
 import { ResultList, type ResultItem } from "../components/result-list";
-import { GoingButton } from "../components/going-button";
+import { GoingButton, type GoingPerson } from "../components/going-button";
 import { SportDetailsForm } from "../components/sport-details-form";
 
 export const metadata = { title: "Sport" };
@@ -66,6 +65,18 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
 
   const canEdit = profile.role === "admin" || sport.rep_id === profile.id;
   const now = new Date();
+
+  // Who pressed "I'm going" — the sign-ups only, which is what the count on
+  // the button means. The squad further down is a wider set (it also includes
+  // whoever listed this sport at onboarding).
+  const goingPeople: GoingPerson[] = (signups.data ?? [])
+    .filter((row) => row.profile !== null)
+    .map((row) => ({
+      id: row.profile!.id,
+      name: row.profile!.full_name || "Someone without a name yet",
+      sectionName: row.profile!.section?.name,
+    }));
+  const mySectionName = goingPeople.find((p) => p.id === profile.id)?.sectionName;
 
   // The squad is "people who play this" plus "people who put their hand up",
   // de-duplicated: signing up after listing it at onboarding is common.
@@ -151,7 +162,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
 
       <Card>
         <CardHeader>
-          <CardTitle>Practice</CardTitle>
+          <CardTitle>Next practice</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm">{sport.practice_info || "No practice times posted yet."}</p>
@@ -169,7 +180,12 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
             <GoingButton
               sportId={sport.id}
               going={Boolean(mySignup.data)}
-              goingCount={signups.data?.length ?? 0}
+              people={goingPeople}
+              me={{
+                id: profile.id,
+                name: profile.full_name || "You",
+                sectionName: mySectionName,
+              }}
             />
           </div>
         </CardContent>
@@ -181,39 +197,29 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
         </CardHeader>
         <CardContent>
           {repName || repEmail || repPhone ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="min-w-0 flex-1">
+            // Contact details are text, not links. Tapping a number used to
+            // open the dialler and tapping the address used to open a mail
+            // app, both from a card people tap to read — the number is there
+            // to be copied into WhatsApp, which is where the res actually
+            // talks to its reps.
+            <div className="space-y-2">
+              <div className="min-w-0">
                 <p className="text-sm font-medium">{repName}</p>
                 {sport.rep?.section && (
                   <SectionBadge name={sport.rep.section.name} className="mt-1" />
                 )}
               </div>
-              {/* Phone first: a rep is far more likely to be WhatsApped than
-                  emailed, and tel: opens the dialler where the number is
-                  already selectable. */}
               {repPhone && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-11"
-                  nativeButton={false}
-                  render={<a href={`tel:${repPhone.replace(/\s+/g, "")}`} />}
-                >
-                  <Phone aria-hidden />
-                  {repPhone}
-                </Button>
+                <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <Phone className="size-4 shrink-0" aria-hidden />
+                  <span className="select-all">{repPhone}</span>
+                </p>
               )}
               {repEmail && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-11"
-                  nativeButton={false}
-                  render={<a href={`mailto:${repEmail}`} />}
-                >
-                  <Mail aria-hidden />
-                  Email the rep
-                </Button>
+                <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <Mail className="size-4 shrink-0" aria-hidden />
+                  <span className="break-all select-all">{repEmail}</span>
+                </p>
               )}
             </div>
           ) : (

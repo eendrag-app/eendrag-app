@@ -53,6 +53,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        {/* Catch `beforeinstallprompt` before React exists.
+
+            Chrome fires it once, as soon as it decides the app is
+            installable, and that can easily be BEFORE hydration finishes on a
+            mid-range phone. A listener registered in a useEffect misses it and
+            there is no way to ask for it again, which is why "Get app" showed
+            on a laptop and never appeared on the phone. Stashing it here, in a
+            script that runs while the page is still parsing, means the button
+            can pick it up whenever it mounts. See src/core/pwa/install.tsx. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){window.__eendragInstallPrompt=null;function s(v){window.__eendragInstallPrompt=v;window.dispatchEvent(new Event("eendrag:installable"))}window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();s(e)});window.addEventListener("appinstalled",function(){s(null)})})();`,
+          }}
+        />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

@@ -15,9 +15,11 @@ describe("navModules", () => {
     expect(student).toEqual(["home", "calendar", "sport", "intersection", "profile"]);
   });
 
-  it("shows the admin tab to the HK and to sport reps", () => {
+  it("shows the admin tab to the HK only", () => {
     expect(navModules("admin").map((m) => m.id)).toContain("admin");
-    expect(navModules("sport_rep").map((m) => m.id)).toContain("admin");
+    // A sport rep edits their sport on the sport's own page. The Admin tab is
+    // the catalogue — appointing reps, deleting sports — and is not theirs.
+    expect(navModules("sport_rep").map((m) => m.id)).not.toContain("admin");
   });
 
   it("orders tabs by `order`, with the calendar between home and sport", () => {

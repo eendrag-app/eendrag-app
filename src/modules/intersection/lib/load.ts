@@ -81,7 +81,9 @@ export async function loadEvents(): Promise<LoadedEvent[]> {
       .from("intersection_events")
       .select("id, name, start_date, rules, status")
       .order("start_date", { ascending: false, nullsFirst: false }),
-    db.from("intersection_groups").select("id, event_id, name"),
+    db
+      .from("intersection_groups")
+      .select("id, event_id, name, first_section_id, second_section_id"),
     db.from("intersection_group_teams").select("group_id, section_id, slot").order("slot"),
     db
       .from("intersection_matches")
@@ -100,7 +102,13 @@ export async function loadEvents(): Promise<LoadedEvent[]> {
   const groupsByEvent = new Map<string, Group[]>();
   for (const group of groups.data ?? []) {
     const list = groupsByEvent.get(group.event_id) ?? [];
-    list.push({ id: group.id, name: group.name, sectionIds: teamsByGroup.get(group.id) ?? [] });
+    list.push({
+      id: group.id,
+      name: group.name,
+      sectionIds: teamsByGroup.get(group.id) ?? [],
+      firstSectionId: group.first_section_id,
+      secondSectionId: group.second_section_id,
+    });
     groupsByEvent.set(group.event_id, list);
   }
   for (const list of groupsByEvent.values()) list.sort((a, b) => a.name.localeCompare(b.name));

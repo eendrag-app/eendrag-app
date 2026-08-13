@@ -2,14 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { getProfile } from "@/core/permissions";
 import { formatLongDate } from "@/core/ui/format";
 import { cn } from "@/lib/utils";
 import { MatchRow, MatchTime } from "../components/match-row";
 import { stageLabel } from "../lib/copy";
 import { loadEvent, loadSections } from "../lib/load";
-import { standings, type Stage } from "../lib/tournament";
+import { needsTieBreak, qualifiers, standings, type Stage } from "../lib/tournament";
 
 export const metadata = { title: "Intersection" };
 
@@ -75,18 +81,45 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
           <div className="grid gap-3 sm:grid-cols-2">
             {event.groups.map((group) => {
               const table = standings(group, event.matches, nameOf);
+              const tied = needsTieBreak(group, event.matches);
+              const through = qualifiers(group, event.matches, nameOf);
               return (
                 <Card key={group.id}>
                   <CardHeader>
                     <CardTitle>Group {group.name}</CardTitle>
+                    {/* A level group is worth saying out loud: without it the
+                        table looks like an ordinary standing and the top row
+                        looks like it has qualified, which it has not. */}
+                    {tied && (
+                      <CardDescription>
+                        {through
+                          ? `All level on points — the HK sent ${nameOf(through.first)} and ${nameOf(through.second)} through.`
+                          : "All level on points. The HK decides who goes through."}
+                      </CardDescription>
+                    )}
                   </CardHeader>
                   <CardContent>
-                    <table className="w-full text-sm">
+                    {/* table-fixed with a colgroup, not auto layout: with auto,
+                        every group sized its own columns from its own longest
+                        section name, so P and W sat in a different place on
+                        each of the four cards. The numbers line up across all
+                        of them now. */}
+                    <table className="w-full table-fixed text-sm">
+                      <colgroup>
+                        <col />
+                        <col className="w-9" />
+                        <col className="w-9" />
+                        <col className="w-11" />
+                      </colgroup>
                       <thead>
                         <tr className="text-muted-foreground text-xs">
                           <th className="pb-1 text-left font-normal">Section</th>
-                          <th className="pb-1 text-right font-normal">P</th>
-                          <th className="pb-1 text-right font-normal">W</th>
+                          <th className="pb-1 text-right font-normal">
+                            <abbr title="Played" className="no-underline">P</abbr>
+                          </th>
+                          <th className="pb-1 text-right font-normal">
+                            <abbr title="Won" className="no-underline">W</abbr>
+                          </th>
                           <th className="pb-1 text-right font-normal">Pts</th>
                         </tr>
                       </thead>
@@ -96,7 +129,7 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                             key={row.sectionId}
                             className={cn(row.sectionId === mySectionId && "text-primary font-semibold")}
                           >
-                            <td className="py-1">{nameOf(row.sectionId)}</td>
+                            <td className="truncate py-1 pr-2">{nameOf(row.sectionId)}</td>
                             <td className="text-right tabular-nums">{row.played}</td>
                             <td className="text-right tabular-nums">{row.won}</td>
                             <td className="text-right font-medium tabular-nums">{row.points}</td>

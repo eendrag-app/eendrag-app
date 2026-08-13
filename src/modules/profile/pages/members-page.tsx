@@ -31,11 +31,11 @@ export default async function MembersPage() {
   return (
     <div className="space-y-4">
       <Link
-        href="/profile"
+        href="/admin"
         className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
       >
         <ChevronLeft className="size-4" aria-hidden />
-        Profile
+        Admin
       </Link>
       <h1 className="text-2xl font-semibold">Members</h1>
 

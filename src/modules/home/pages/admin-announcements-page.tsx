@@ -56,11 +56,11 @@ export default async function AdminAnnouncementsPage() {
   return (
     <div className="space-y-4">
       <Link
-        href="/profile"
+        href="/admin"
         className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
       >
         <ChevronLeft className="size-4" aria-hidden />
-        Profile
+        Admin
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-2">

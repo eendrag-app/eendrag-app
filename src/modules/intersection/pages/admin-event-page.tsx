@@ -10,9 +10,11 @@ import { DeleteEventButton } from "../components/delete-event-button";
 import { DrawAdmin } from "../components/draw-admin";
 import { EventForm } from "../components/event-form";
 import { MatchAdmin, type AdminMatch, type SectionOption } from "../components/match-admin";
+import { TieBreakAdmin, type TiedGroup } from "../components/tie-break-admin";
 import { sideLabel, stageLabel } from "../lib/copy";
 import { canClearResult, canEditGroups, canEditTeams, canRegenerateDraw } from "../lib/guards";
 import { loadEvent, loadSections } from "../lib/load";
+import { needsTieBreak } from "../lib/tournament";
 
 export const metadata = { title: "Run an event" };
 
@@ -59,6 +61,18 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
   });
 
   const sectionOptions: SectionOption[] = sections;
+
+  // Groups that ended in a three-way tie. Nothing appears unless one actually
+  // happened — most events never see this card at all.
+  const tiedGroups: TiedGroup[] = event.groups
+    .filter((group) => needsTieBreak(group, event.matches))
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      teams: group.sectionIds.map((sectionId) => ({ id: sectionId, name: nameOf(sectionId) })),
+      firstSectionId: group.firstSectionId ?? null,
+      secondSectionId: group.secondSectionId ?? null,
+    }));
 
   return (
     <div className="space-y-4">
@@ -118,6 +132,21 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
           />
         </CardContent>
       </Card>
+
+      {tiedGroups.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Who goes through</CardTitle>
+            <CardDescription>
+              A group of three with no draws either has a clear order or is completely
+              level. This one is level, and the app will not guess.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TieBreakAdmin eventId={event.id} groups={tiedGroups} />
+          </CardContent>
+        </Card>
+      )}
 
       {adminMatches.length > 0 && (
         <Card>

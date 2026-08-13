@@ -694,3 +694,91 @@ is a question a future maintainer has to answer before trusting anything near
 it, and the answer costs more than the migration does. The bracket rules,
 points and section leaderboard in `tournament.ts` are untouched — that is res
 law and pinned by tests.
+
+## 2026-08-13 — A three-way tie in a group is the HK's call, not the sort's
+
+**Decision:** when all three teams in a group win one game, the app stops and
+asks. `intersection_groups.first_section_id` / `second_section_id` (migration
+0502) hold the answer; until it is given, that group's two quarter-final
+places stay empty.
+
+**Why.** A group of three with no draws has exactly two possible endings:
+someone wins both (6/3/0) or everyone wins one (3/3/3). The second is a cycle
+— A beat B, B beat C, C beat A — so head-to-head cannot break it, and there is
+no score difference to fall back on because the app has never recorded scores.
+The old sort fell through to comparing section *names*, which quietly sent
+Arendstraat through ahead of Wineroute for a reason nobody could defend to the
+res. The HK settles those on the day and now types the answer in.
+
+**Where the rule lives.** `needsTieBreak` and `qualifiers` in
+`lib/tournament.ts`, pure and tested. `standings` is unchanged: its name
+comparison is presentation only, so the table does not jump about between
+renders, and it no longer decides anything.
+
+**Guarded server-side.** `setGroupTieBreak` re-checks `needsTieBreak` rather
+than trusting the form — otherwise it would be a way to hand-pick qualifiers
+out of a group somebody actually won.
+
+## 2026-08-13 — Notifications go out after the response, not before it
+
+**Decision:** `setResult` and `setMatchTime` schedule their `notify()` calls
+with `after()` from `next/server`.
+
+**Why.** Entering a winner took several seconds to show. `notify()` resolves
+recipients, writes a row per person and then pushes to every subscribed device
+over the network; two of those in series sat in front of the admin's action
+return. Capturing a whole event meant waiting through it once per fixture. The
+result is saved and the bracket recalculated before the response goes out —
+nothing on screen depends on the push having been sent.
+
+**The other half of it** is `match-admin.tsx`, where the winner dropdown was
+controlled purely by the last server render. It now shows the pick
+immediately and drops it again if the write is refused.
+
+## 2026-08-13 — The Admin tab is the HK's, and sport reps do not get one
+
+**Decision:** `admin` and the sport admin panel are `roles: ["admin"]`. A rep
+edits their sport on the sport's own page, the same page the res reads.
+
+**Why.** The rep's version of the admin screen only ever listed their sport
+and linked to that page — a second door to one room, and one more thing to
+keep in step. The catalogue behind that tab is appointing reps and deleting
+sports, which is HK work. Nothing about a rep's actual permissions changed:
+`app_is_rep_of` and the RLS policies are untouched.
+
+**Profile lost its admin signpost too.** It was there for people who
+remembered the old layout; a tab and a card pointing at the same place is
+just two things to maintain.
+
+## 2026-08-13 — One date-and-time control, built here
+
+**Decision:** `src/core/ui/date-time-picker.tsx` — a month grid for the day
+and two snap-scrolling wheels for the time, the way a phone's alarm does it.
+It replaces `<input type="datetime-local">` on the intersection fixtures and
+the event date.
+
+**Why.** The native control is a different thing in every browser, wants a
+keyboard in some of them, and on Android buries the date behind a spinner. The
+res sets these on phones, standing next to a field.
+
+**It speaks the same strings the native input did** ("2026-08-20T19:00", res
+wall-clock), so `fromLocalInput` / `toLocalInput` remain the only code that
+knows about timezones and no server action changed. Minutes go in fives:
+this schedules res fixtures, not trains.
+
+## 2026-08-13 — "Get app" is stashed before React starts
+
+**Decision:** an inline script in `src/app/layout.tsx` catches
+`beforeinstallprompt` and parks it on `window`; the button reads it through
+`useSyncExternalStore`.
+
+**Why.** Chrome fires that event once, as soon as it decides the app
+qualifies, and on a mid-range phone that can be *before* hydration finishes. A
+listener registered in a `useEffect` missed it, and it cannot be asked for
+again — which is why the button appeared on a laptop and never on the phone.
+Install state is per device and always was; nothing about it is stored against
+an account.
+
+**Also fixed:** iPads have claimed to be Macs since iPadOS 13, so the user
+agent alone put them in "cannot install" and hid the only instructions they
+can act on.

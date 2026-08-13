@@ -3,17 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { createSport, saveRep, setSportActive } from "../actions";
+import { createSport, deleteSport, saveRep } from "../actions";
 
 export interface AdminSport {
   id: string;
   name: string;
-  isActive: boolean;
   repName: string;
   repPhone: string;
   repEmail: string;
@@ -21,16 +19,18 @@ export interface AdminSport {
   repLinked: boolean;
 }
 
-// Add a sport, retire one at the end of a season, and say who runs it.
+// Add a sport, delete one the res no longer plays, and say who runs it.
 //
 // Reps are typed in, not chosen from a list of accounts. The HK knows who runs
 // hockey long before that person opens the app, and the old dropdown could
 // only appoint someone who had already signed up.
 export function SportAdminList({ sports }: { sports: AdminSport[] }) {
-  const [rows, setRows] = useState(sports);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
+  const rows = sports;
 
   async function add(formData: FormData) {
     setBusy(true);
@@ -41,14 +41,14 @@ export function SportAdminList({ sports }: { sports: AdminSport[] }) {
     else setError(result.error);
   }
 
-  async function toggleActive(sport: AdminSport, isActive: boolean) {
-    setRows((prev) => prev.map((s) => (s.id === sport.id ? { ...s, isActive } : s)));
+  async function remove(sport: AdminSport) {
+    setDeletingId(sport.id);
     setError(null);
-    const result = await setSportActive(sport.id, isActive);
-    if (!result.ok) {
-      setRows((prev) => prev.map((s) => (s.id === sport.id ? sport : s)));
-      setError(result.error);
-    }
+    const result = await deleteSport(sport.id);
+    setDeletingId(null);
+    setConfirmId(null);
+    if (result.ok) router.refresh();
+    else setError(result.error);
   }
 
   return (
@@ -75,17 +75,47 @@ export function SportAdminList({ sports }: { sports: AdminSport[] }) {
                   {sport.name}
                 </Link>
               </div>
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <Switch
-                  checked={sport.isActive}
-                  onCheckedChange={(isActive) => toggleActive(sport, isActive)}
-                  aria-label={`${sport.name} is running`}
-                />
-                <span className="text-muted-foreground">
-                  {sport.isActive ? "Running" : "Paused"}
-                </span>
-              </label>
+              {/* Two taps, and the second one says what it takes with it —
+                  deleting a sport is not something to do by brushing past a
+                  bin icon on a phone. */}
+              {confirmId === sport.id ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-11 sm:h-8"
+                    disabled={deletingId === sport.id}
+                    onClick={() => remove(sport)}
+                  >
+                    {deletingId === sport.id ? "Deleting…" : "Really delete"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-11 sm:h-8"
+                    onClick={() => setConfirmId(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-11 sm:h-8"
+                  onClick={() => setConfirmId(sport.id)}
+                >
+                  <Trash2 aria-hidden />
+                  Delete
+                </Button>
+              )}
             </div>
+            {confirmId === sport.id && (
+              <p className="text-muted-foreground text-sm">
+                This deletes {sport.name} along with its fixtures, results and everyone who
+                signed up for it, and takes its games off the calendar. There is no undo.
+              </p>
+            )}
             <RepFields sport={sport} onSaved={() => router.refresh()} />
           </li>
         ))}

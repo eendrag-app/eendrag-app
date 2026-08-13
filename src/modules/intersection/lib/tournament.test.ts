@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   generateDraw,
   leaderboard,
+  needsTieBreak,
   placements,
+  qualifiers,
   recalc,
   sourceLabel,
   standings,
@@ -198,7 +200,85 @@ describe("recalc", () => {
     const ms = [match({ stage: "group", sortOrder: 1, groupId: "g", teamAId: "x", teamBId: "y" })];
     expect(recalc(groups, ms, name)).toBe("upcoming");
   });
+
+  it("leaves a tied group's knockout places empty until the HK decides", () => {
+    const { groups, matches } = playedOutEvent();
+    tieGroupA(groups, matches);
+    recalc(groups, matches, name);
+
+    // A1 feeds QF1 and A2 feeds QF3 — both sides that come from group A are
+    // blank, and the ones that do not are unaffected.
+    const qf1 = matches.find((m) => m.stage === "qf" && m.slot === 1)!;
+    const qf3 = matches.find((m) => m.stage === "qf" && m.slot === 3)!;
+    expect(qf1.teamAId).toBeNull();
+    expect(qf1.teamBId).toBe("b2");
+    expect(qf3.teamAId).toBe("b1");
+    expect(qf3.teamBId).toBeNull();
+  });
+
+  it("uses the HK's decision once it is made", () => {
+    const { groups, matches } = playedOutEvent();
+    tieGroupA(groups, matches);
+    groups[0].firstSectionId = "a3";
+    groups[0].secondSectionId = "a1";
+    recalc(groups, matches, name);
+
+    const qf1 = matches.find((m) => m.stage === "qf" && m.slot === 1)!;
+    const qf3 = matches.find((m) => m.stage === "qf" && m.slot === 3)!;
+    expect(qf1.teamAId).toBe("a3");
+    expect(qf3.teamBId).toBe("a1");
+  });
 });
+
+describe("needsTieBreak", () => {
+  const group: Group = { id: "g1", name: "A", sectionIds: ["x", "y", "z"] };
+
+  it("is true only when all three finish level", () => {
+    // x beat y, y beat z, z beat x: one win each, and no way to split them.
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", winnerId: "x", played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", winnerId: "y", played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", winnerId: "z", played: true }),
+    ];
+    expect(needsTieBreak(group, ms)).toBe(true);
+    expect(qualifiers(group, ms, name)).toBeNull();
+  });
+
+  it("is false when somebody won the group", () => {
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", winnerId: "x", played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", winnerId: "y", played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", winnerId: "x", played: true }),
+    ];
+    expect(needsTieBreak(group, ms)).toBe(false);
+    expect(qualifiers(group, ms, name)).toEqual({ first: "x", second: "y" });
+  });
+
+  it("is false while games are still outstanding", () => {
+    // Everyone on nothing is not a tie, it is a group that has not started.
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y" }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z" }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z" }),
+    ];
+    expect(needsTieBreak(group, ms)).toBe(false);
+  });
+});
+
+/** Rewrite group A's results into a three-way cycle: a1 > a2 > a3 > a1. */
+function tieGroupA(groups: Group[], matches: Match[]) {
+  const [g] = groups;
+  const [s1, s2, s3] = g.sectionIds;
+  const gameOf = (a: string, b: string) =>
+    matches.find(
+      (m) =>
+        m.groupId === g.id &&
+        ((m.teamAId === a && m.teamBId === b) || (m.teamAId === b && m.teamBId === a)),
+    )!;
+  gameOf(s1, s2).winnerId = s1;
+  gameOf(s2, s3).winnerId = s2;
+  gameOf(s1, s3).winnerId = s3;
+}
 
 describe("placements and leaderboard", () => {
   it("assigns tiers and default points 15/12/9/6/3", () => {

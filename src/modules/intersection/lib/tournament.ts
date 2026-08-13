@@ -31,6 +31,9 @@ export interface Group {
   id: string;
   name: string; // 'A'..'D'
   sectionIds: string[]; // exactly 3, slot order
+  /** The HK's answer to a three-way tie: who goes through 1st and 2nd. */
+  firstSectionId?: string | null;
+  secondSectionId?: string | null;
 }
 
 // Mirrors intersection_matches.
@@ -180,9 +183,13 @@ export function generateDraw(
 }
 
 /**
- * Group standings. No draws: win = 3 points. Tie-break: points, then
- * head-to-head, then a stable name comparison supplied by the caller
- * (the admin can always override knockout pairings for a three-way tie).
+ * Group standings. No draws: win = 3 points. Ordered by points, then
+ * head-to-head, then a stable name comparison supplied by the caller.
+ *
+ * That last step is presentation only — it keeps the table from jumping about
+ * between renders. It is NOT a tie-break: when all three finish level the
+ * order here means nothing, `needsTieBreak` says so, and who actually goes
+ * through is the HK's call.
  */
 export function standings(
   group: Group,
@@ -233,6 +240,42 @@ export function standings(
 }
 
 /**
+ * Is this group's top two undecidable from its results alone?
+ *
+ * Three teams, one game each against the other two, no draws: either somebody
+ * wins both (6/3/0) or everybody wins one (3/3/3). The second is a cycle, so
+ * head-to-head is no help — and with no scores recorded there is nothing else
+ * to separate them. That is the ONLY tie this format can produce, and it is
+ * the HK's to settle.
+ *
+ * Answers false while games are still outstanding: a group is not tied, it is
+ * unfinished.
+ */
+export function needsTieBreak(group: Group, matches: Match[]): boolean {
+  const rows = standings(group, matches, () => "");
+  if (rows.length < 2) return false;
+  if (!rows.every((r) => r.played === rows.length - 1)) return false;
+  return rows.every((r) => r.points === rows[0].points);
+}
+
+/** Who a group sends through, or null while that is not yet knowable. */
+export function qualifiers(
+  group: Group,
+  matches: Match[],
+  sectionName: (id: string) => string,
+): { first: string; second: string } | null {
+  if (needsTieBreak(group, matches)) {
+    // Only the HK's answer will do here. Without one the knockout slots stay
+    // empty rather than being filled by whatever the sort happened to do.
+    return group.firstSectionId && group.secondSectionId
+      ? { first: group.firstSectionId, second: group.secondSectionId }
+      : null;
+  }
+  const st = standings(group, matches, sectionName);
+  return st.length >= 2 ? { first: st[0].sectionId, second: st[1].sectionId } : null;
+}
+
+/**
  * Fill knockout participants from group ranks / earlier winners, and derive
  * the event status. Mutates the passed matches in place (mirroring the old
  * app); played matches and manually-edited pairings are never touched.
@@ -248,9 +291,10 @@ export function recalc(
   const resolveMap = new Map<string, string>();
   if (groupMs.length > 0 && groupMs.every((m) => m.played)) {
     for (const g of groups) {
-      const st = standings(g, matches, sectionName);
-      resolveMap.set(g.name + "1", st[0].sectionId);
-      resolveMap.set(g.name + "2", st[1].sectionId);
+      const through = qualifiers(g, matches, sectionName);
+      if (!through) continue; // tied, and the HK has not said yet
+      resolveMap.set(g.name + "1", through.first);
+      resolveMap.set(g.name + "2", through.second);
     }
   }
   for (const m of ms) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Download, Share, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,10 @@ import { cn } from "@/lib/utils";
 // Both surfaces render NOTHING when the app is already installed, or in a
 // browser that cannot install it (desktop Firefox, for one) — better silence
 // than a button that does nothing.
+//
+// INSTALL STATE IS PER DEVICE, never per account. Installing on a laptop must
+// leave the button showing on the same person's phone, which is why nothing
+// here is read from or written to the database.
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -33,6 +37,13 @@ interface InstallPromptEvent extends Event {
 /** "prompt" = the browser will install it for us; "ios" = we can only explain how. */
 type Offer = "none" | "prompt" | "ios";
 
+/** Stashed by the inline script in src/app/layout.tsx, which runs before React. */
+declare global {
+  interface Window {
+    __eendragInstallPrompt?: InstallPromptEvent | null;
+  }
+}
+
 function isStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -41,39 +52,46 @@ function isStandalone(): boolean {
   );
 }
 
+// iPads have claimed to be Macs since iPadOS 13, so the user agent alone puts
+// them in the "cannot install" bucket and hides the only instructions they can
+// act on. A Mac with a touchscreen does not exist; an iPad reporting one does.
+function isAppleTouchDevice(): boolean {
+  const ua = window.navigator.userAgent;
+  return (
+    /iphone|ipad|ipod/i.test(ua) ||
+    (/macintosh/i.test(ua) && window.navigator.maxTouchPoints > 1)
+  );
+}
+
+// The stashed event is external state that changes without React's knowledge,
+// which is exactly what useSyncExternalStore is for. Reading it in an effect
+// instead would mean a second render on every mount — and the repo's lint
+// rules rightly refuse setState inside an effect body.
+function subscribe(onChange: () => void): () => void {
+  window.addEventListener("eendrag:installable", onChange);
+  return () => window.removeEventListener("eendrag:installable", onChange);
+}
+function readStash(): InstallPromptEvent | null {
+  return window.__eendragInstallPrompt ?? null;
+}
+function noStashOnServer(): InstallPromptEvent | null {
+  return null;
+}
+
 function useInstall() {
   // The server cannot know any of this, and neither can the first client
   // render without producing different HTML — see useMounted.
   const mounted = useMounted();
-  const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
+  const prompt = useSyncExternalStore(subscribe, readStash, noStashOnServer);
   const [installed, setInstalled] = useState(false);
   const [iosHelpOpen, setIosHelpOpen] = useState(false);
-
-  useEffect(() => {
-    function onBeforeInstallPrompt(event: Event) {
-      // Stop Chrome's own mini-infobar; the button is the invitation.
-      event.preventDefault();
-      setPrompt(event as InstallPromptEvent);
-    }
-    function onInstalled() {
-      setInstalled(true);
-      setPrompt(null);
-    }
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
 
   const offer: Offer =
     !mounted || installed || isStandalone()
       ? "none"
       : prompt
         ? "prompt"
-        : /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+        : isAppleTouchDevice()
           ? "ios"
           : "none";
 
@@ -86,11 +104,17 @@ function useInstall() {
     const { outcome } = await prompt.userChoice;
     // The event is single-use: once shown it cannot be replayed, and the
     // browser fires a fresh one if the person changes their mind later.
-    setPrompt(null);
+    clearStashedPrompt();
     if (outcome === "accepted") setInstalled(true);
   }
 
   return { offer, install, iosHelpOpen, setIosHelpOpen };
+}
+
+/** Drop the stashed event and tell every mounted button it has gone. */
+function clearStashedPrompt() {
+  window.__eendragInstallPrompt = null;
+  window.dispatchEvent(new Event("eendrag:installable"));
 }
 
 function IosHelpSheet({

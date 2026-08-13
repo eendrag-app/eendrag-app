@@ -16,7 +16,7 @@ const sportModule: AppModule = {
       title: "Sports & reps",
       description: "Add sports, assign reps, edit practice times and venues",
       href: "/sport/admin",
-      roles: ["admin", "sport_rep"],
+      roles: ["admin"],
     },
   ],
   calendarSource: true,

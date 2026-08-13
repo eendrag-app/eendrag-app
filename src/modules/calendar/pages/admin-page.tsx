@@ -5,13 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { createClient } from "@/core/db/server";
 import { requireRole } from "@/core/permissions";
 import { EmptyState } from "@/core/ui/empty-state";
-import { formatDateTime } from "@/core/ui/format";
+import { dayKey, formatDateTime, formatTime } from "@/core/ui/format";
 import { EventAdminList, type AdminEvent } from "../components/event-admin-list";
 
 export const metadata = { title: "Calendar" };
 
 // Everything from a month ago onwards: far enough back to fix a typo in last
-// week's event, not so far that the list becomes an archive.
+// week's event, not so far that the list becomes an archive. The month grid
+// pages through the same rows, so flicking back a month costs nothing.
 const PAST_DAYS = 30;
 
 export default async function CalendarAdminPage() {
@@ -24,17 +25,22 @@ export default async function CalendarAdminPage() {
     .select("id, title, category, location, starts_at, source_module, section:sections(name)")
     .gte("starts_at", from)
     .order("starts_at")
-    .limit(200);
+    .limit(400);
 
   const items: AdminEvent[] = (data ?? []).map((e) => ({
     id: e.id,
     title: e.title,
     category: e.category,
     whenLabel: formatDateTime(e.starts_at),
+    dayKey: dayKey(e.starts_at),
+    timeLabel: formatTime(e.starts_at),
     location: e.location,
     sectionName: e.section?.name ?? null,
     sourceModule: e.source_module,
   }));
+  // "Today" is decided on the server: res time, one answer, no hydration
+  // mismatch between a phone in Stellenbosch and one on exchange.
+  const todayKey = dayKey(new Date());
 
   return (
     <div className="space-y-4">
@@ -61,10 +67,10 @@ export default async function CalendarAdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>What is coming up</CardTitle>
+          <CardTitle>What is on</CardTitle>
           <CardDescription>
-            Sport fixtures and intersection games put themselves here — never add those by
-            hand, they would just appear twice.
+            Tap a day to see it, edit it or add to it. Sport fixtures and intersection games
+            put themselves here — never add those by hand, they would just appear twice.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -75,7 +81,7 @@ export default async function CalendarAdminPage() {
               description="Add the next huisvergadering, sokkie or deadline and everyone sees it."
             />
           ) : (
-            <EventAdminList items={items} />
+            <EventAdminList items={items} todayKey={todayKey} />
           )}
         </CardContent>
       </Card>
