@@ -313,14 +313,20 @@ export async function deleteResult(resultId: string, sportId: string) {
   return { ok: true as const };
 }
 
-/** "I want to play." Own row only, and pressing it again undoes it. */
-export async function toggleSignup(sportId: string, signedUp: boolean) {
+/**
+ * "I'm going." Own row only, and pressing it again undoes it.
+ *
+ * The row lives in sport_signups, which is also what the squad list is built
+ * from — the button was labelled "Sign me up" when that table was named. It
+ * counts people, not attendance at any particular fixture.
+ */
+export async function toggleGoing(sportId: string, going: boolean) {
   const profile = await requireProfile();
   const parsed = z.uuid().safeParse(sportId);
   if (!parsed.success) return { ok: false as const, error: "Unknown sport" };
 
   const db = await createClient();
-  if (signedUp) {
+  if (going) {
     const { error } = await db
       .from("sport_signups")
       .delete()
@@ -380,39 +386,79 @@ export async function setSportActive(sportId: string, isActive: boolean) {
   return { ok: true as const };
 }
 
+const repInput = z.object({
+  sportId: z.uuid(),
+  name: z.string().trim().max(120),
+  phone: z.string().trim().max(40),
+  // Optional, because the HK often knows the name and number before the
+  // address. Without it the card is contact details and nothing more.
+  email: z.union([z.literal(""), z.string().trim().email("That email does not look right")]),
+});
+
 /**
- * Assign (or clear) a sport's rep. Admin-only twice over: the check here and
- * the app_guard_sport_rep trigger in the database, which rejects a rep_id
- * change from anyone who is not an admin.
+ * Appoint a sport's rep by typing their details.
+ *
+ * Admin-only twice over: the check here and the app_guard_sport_rep trigger,
+ * which rejects a rep_id change from any signed-in non-admin.
+ *
+ * The email is what grants the permission, but never directly — it is matched
+ * against the address Supabase verified and turned into rep_id, which is the
+ * only thing app_is_rep_of() looks at. Matching here covers a rep who already
+ * has an account; the app_handle_new_user trigger (migration 0403) covers one
+ * who signs up later. Between them there is no order the HK can get wrong.
  */
-export async function assignRep(sportId: string, profileId: string | null) {
+export async function saveRep(formData: FormData) {
   await requireRole("admin");
-  const parsed = z
-    .object({ sportId: z.uuid(), profileId: z.uuid().nullable() })
-    .safeParse({ sportId, profileId: profileId === "" ? null : profileId });
-  if (!parsed.success) return { ok: false as const, error: "Unknown sport or person" };
+  const parsed = repInput.safeParse({
+    sportId: formData.get("sportId"),
+    name: formData.get("name") ?? "",
+    phone: formData.get("phone") ?? "",
+    email: formData.get("email") ?? "",
+  });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+  const input = parsed.data;
 
   const db = await createClient();
-  const { error } = await db
-    .from("sports")
-    .update({ rep_id: parsed.data.profileId })
-    .eq("id", parsed.data.sportId);
-  if (error) return { ok: false as const, error: "Could not set the rep" };
 
-  // A rep needs the sport_rep role to see the admin panel; give it to them
-  // here so appointing a rep is one action rather than two screens.
-  if (parsed.data.profileId) {
+  // Does this address already have an account? Emails are stored as the user
+  // typed them, so match case-insensitively.
+  let repId: string | null = null;
+  if (input.email !== "") {
     const { data: person } = await db
       .from("profiles")
-      .select("role")
-      .eq("id", parsed.data.profileId)
-      .single();
-    if (person?.role === "student") {
-      await db.from("profiles").update({ role: "sport_rep" }).eq("id", parsed.data.profileId);
+      .select("id, role")
+      .ilike("email", input.email)
+      .maybeSingle();
+    if (person) {
+      repId = person.id;
+      // A rep needs sport_rep for the Admin tab. Only lifted from 'student':
+      // an admin who happens to run a sport stays an admin.
+      if (person.role === "student") {
+        await db.from("profiles").update({ role: "sport_rep" }).eq("id", person.id);
+      }
     }
   }
 
+  const { data, error } = await db
+    .from("sports")
+    .update({
+      rep_name: input.name,
+      rep_phone: input.phone,
+      rep_email: input.email,
+      rep_id: repId,
+    })
+    .eq("id", input.sportId)
+    .select("id");
+  if (error) return { ok: false as const, error: "Could not save the rep" };
+  if (!data || data.length === 0) return { ok: false as const, error: "Only an admin can do that" };
+
   revalidatePath("/sport");
+  revalidatePath(`/sport/${input.sportId}`);
   revalidatePath("/sport/admin");
-  return { ok: true as const };
+  return {
+    ok: true as const,
+    // The difference matters to the admin: "saved, and they can edit it now"
+    // versus "saved, and they get access the moment they sign up".
+    linked: repId !== null,
+  };
 }

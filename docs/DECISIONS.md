@@ -555,6 +555,122 @@ button.
 - **Nothing deletes the storage object when a post is deleted.** Same as
   images and PDFs today; noted in docs/BUILD-LOG.md rather than pretended away.
 
+## 2026-08-12 — Reps are appointed by typing an email, not by picking an account
+
+**Decision:** the HK types a rep's name, phone number and student email.
+`sports.rep_email` is a claim ticket; `rep_id` is still the only thing that
+grants permission, and `app_is_rep_of()` is untouched.
+
+**Alternatives:** keep the dropdown of existing accounts; authorise directly
+on the email.
+
+**Why not the dropdown.** It could only appoint someone who had already signed
+up, which is backwards — the HK knows who runs hockey long before that person
+opens the app. Now either order works: if the address already has an account
+the server action links it immediately, and if it does not, the
+`app_handle_new_user` trigger (0403) claims the sport the moment they sign up.
+
+**Why not authorise on the email directly.** `profiles.email` is editable by
+its owner — policy `profiles_update_own` in 0100, and the privilege guard
+covers only `role` and `is_active`. A student could set their own email to the
+hockey rep's address and inherit the sport. Matching happens once, against the
+address Supabase actually verified in `auth.users`, and the result is written
+to `rep_id`.
+
+**The hole 0403 opened, closed in 0404.** `sports_update_admin_or_own_rep`
+lets a rep edit their own sport's row, and the guard only blocked `rep_id`.
+With `rep_email` added, a rep could point it at a friend, who would inherit
+the sport on signup — a rep appointing their own successor. `rep_email` is now
+guarded exactly like `rep_id`. `rep_name` and `rep_phone` are deliberately
+left open: they are the contact card, and a rep fixing their own phone number
+without filing a request with the HK is a feature.
+
+Verified against the live project, as the rep: practice info and phone number
+still editable, `rep_email` and `rep_id` both refused with *"only admins may
+assign sport reps"*.
+
+## 2026-08-12 — "I'm going" says how many
+
+**Decision:** the sport sign-up button reads "I'm going" and carries a count
+of everyone who has pressed it.
+
+**Why.** Pressing a button into silence tells you nothing, and whether a
+practice is worth walking to depends entirely on whether anyone else is
+coming. Button and count move optimistically together and roll back together
+— a count that disagrees with the button is worse than a slow one.
+
+**What it counts.** Rows in `sport_signups`, which is also what the squad list
+is built from: people interested in the sport, **not** attendance at a
+particular fixture. If the res wants per-fixture attendance ("who is coming to
+Saturday's game?") that is a different table and a different feature.
+
+## 2026-08-12 — Sign-in is a plain form POST, not a server action
+
+**Decision:** `/login` and `/signup` submit real HTML forms to route handlers
+at `src/app/auth/*`, which redirect with a 303. They were server actions.
+
+**Alternatives:** keep the server action and hope password managers catch up;
+add "remember me"; go straight to Microsoft SSO.
+
+**Why.** The complaint was "I have to sign in every time". The session was
+never the problem — the cookie is written server-side with a 400-day
+`Max-Age`, middleware refreshes it on every request, and only one file uses
+the browser client, so nothing races the refresh token. What was missing is
+that **no password manager had ever offered to save the password.** iOS
+Keychain and Chrome both wait for a real form submission followed by a real
+navigation before offering; a server action submits over `fetch` and never
+navigates, so it is invisible to them. Every visit meant typing the whole
+thing again, which feels exactly like being logged out.
+
+A route handler is also the only place `cookies()` from `next/headers` is
+writable outside middleware, so the session cookie rides the redirect —
+verified, not assumed: a POST to `/auth/login` answers `303` with
+`Set-Cookie: sb-…-auth-token; Max-Age=34560000`.
+
+**What that costs, and how it is paid.** Server actions get two things free
+that a raw POST handler does not:
+
+- **Origin checking.** `isSameOrigin()` in `src/core/auth/form-post.ts` does
+  it explicitly, or any site could POST a browser at `/auth/login` and sign
+  someone into an attacker's account.
+- **A trustworthy redirect target.** The old action validated `?next=` with
+  `startsWith("/")`, which `//evil.com` passes — a protocol-relative URL the
+  browser happily follows off-site. That was a live open redirect, not one
+  this change introduced. `safeNext()` closes it and the test file pins it.
+
+Failures come back as a `?error=<code>`, never a message: a code is safe in a
+URL, and no email or raw Supabase error ends up in an access log.
+
+## 2026-08-12 — Signup reads Supabase's answer instead of guessing
+
+**Decision:** `signUp()` reports whether a session was actually established,
+and the signup route sends people to "check your email" when it was not.
+The interpretation lives in pure functions in `src/core/auth/interpret.ts`.
+
+**Why.** Creating a brand-new account reported **"Wrong email or password"** —
+on an account that had existed for one second. `signupAction` called `signUp`
+and then immediately `signInWithPassword`, under a comment saying there is no
+email confirmation in open mode. There is: the hosted project reports
+`mailer_autoconfirm: false`, so **"Confirm email" is on**. `signUp` therefore
+succeeds with no session, the sign-in that followed correctly refused an
+unconfirmed user, and that refusal was flattened into the generic wrong-password
+message. The second call is now gone entirely — when confirmation is off,
+`signUp` already returns a session and there is nothing to do.
+
+Reading that answer is genuinely fiddly, which is why it is pure and tested:
+with confirmation on, an address that already exists comes back as a **decoy
+user with no error and no session** (so the form cannot be used to discover who
+has an account) and is distinguishable from a real new signup only by an empty
+`identities` array.
+
+**Two limits worth knowing before the res signs up.** Supabase rejects an
+address whose domain has no MX record, so typos like `@gmial.com` are refused
+by the API rather than by us — now reported as a bad address instead of "the
+service is down". And its built-in mailer is rate-limited to a handful an
+hour, which **will not survive 280 students signing up in one evening**. Both
+have their own error codes and messages; the fix for the second is real SMTP
+or turning confirmation off for the pilot.
+
 ## 2026-08-12 — Intersection is sections, not people
 
 **Decision:** the roster (who from each section played in an event) and the
