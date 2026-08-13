@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Trophy, X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/core/ui/empty-state";
-import { deleteResult, postResult } from "../actions";
+import { deleteResult } from "../actions";
 
 export interface ResultItem {
   id: string;
@@ -16,9 +14,14 @@ export interface ResultItem {
   whenLabel: string;
 }
 
-// Results, and the rep's way of posting one. Posting also writes a short
-// announcement to the whole res's feed and notifies the people who play the
-// sport — see postResult in ../actions.ts.
+// Results, read-only apart from deleting one.
+//
+// There is no "post a result" form here any more, on purpose: a result is
+// what a fixture becomes when someone enters its score, which happens on the
+// fixture itself. Posting one from scratch meant typing the opponent and the
+// date a second time, with nothing tying the two records together. Deleting a
+// result puts its fixture back to asking for a score, which makes this the
+// undo button for a wrong one.
 export function ResultList({
   sportId,
   results,
@@ -28,24 +31,10 @@ export function ResultList({
   results: ResultItem[];
   canEdit: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const router = useRouter();
-
-  async function submit(formData: FormData) {
-    setBusy(true);
-    setError(null);
-    const result = await postResult(formData);
-    setBusy(false);
-    if (result.ok) {
-      setAdding(false);
-      router.refresh();
-    } else {
-      setError(result.error);
-    }
-  }
 
   async function remove(id: string) {
     setBusy(true);
@@ -61,10 +50,10 @@ export function ResultList({
     <div className="space-y-3">
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {results.length === 0 && !adding ? (
+      {results.length === 0 ? (
         <EmptyState
           title="No results yet"
-          description="They show up here — and on everyone's feed — as soon as the rep posts one."
+          description="A fixture lands here — and on everyone's feed — as soon as its score is entered."
         />
       ) : (
         <ul className="divide-y">
@@ -115,50 +104,6 @@ export function ResultList({
         </ul>
       )}
 
-      {canEdit &&
-        (adding ? (
-          <form action={submit} className="bg-muted/40 space-y-3 rounded-lg p-3">
-            <input type="hidden" name="sportId" value={sportId} />
-            <div className="space-y-1">
-              <Label htmlFor="summary">What happened</Label>
-              <Input
-                id="summary"
-                name="summary"
-                placeholder="beat Helshoogte"
-                className="h-11"
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="score">Score (optional)</Label>
-              <Input id="score" name="score" placeholder="3–1" className="h-11" />
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit" size="lg" className="h-11" disabled={busy}>
-                {busy ? "Posting…" : "Post result"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="h-11"
-                onClick={() => setAdding(false)}
-              >
-                <X aria-hidden />
-                Cancel
-              </Button>
-            </div>
-            <p className="text-muted-foreground text-sm">
-              This also posts a one-line announcement on the res feed and tells everyone who
-              plays.
-            </p>
-          </form>
-        ) : (
-          <Button variant="outline" size="lg" className="h-11" onClick={() => setAdding(true)}>
-            <Trophy aria-hidden />
-            Post a result
-          </Button>
-        ))}
     </div>
   );
 }

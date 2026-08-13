@@ -46,19 +46,41 @@ never add those by hand, they'd just duplicate.
 ## Sport reps
 
 Each sport has one rep. The rep can edit their own sport's page (practice
-times, venue, description), post fixtures and results — and nothing else.
+times, venue, description), post fixtures and enter results — and nothing
+else. Reps do not see the Admin tab at all.
 
-- **Appoint a rep:** Admin → Sports & reps → find the sport →
-  pick the person from the dropdown. They must have created an account first.
-  That one action also gives them the sport-rep role, so there is nothing to
-  do under Members.
-- **Change of rep:** same place, pick the new person. The old rep loses
-  editing rights immediately.
+- **Appoint a rep:** Admin → Sports & reps → find the sport → type their
+  name, phone number and student email. They do **not** need an account yet:
+  the sport is waiting for that address, and the moment somebody signs up
+  with it they get the sport and the sport-rep role. There is nothing to do
+  under Members.
+- **Change of rep:** same place, type the new person's details. The old rep
+  loses editing rights immediately. Clearing the email leaves the sport with
+  nobody running it.
 - **A rep edits their sport on the sport's own page** — the same page
-  everyone else reads. Practice times, venue, coach, description, fixtures
-  and results are all there once they are signed in.
-- **Pause a sport** (nobody is running it this year) with the switch next to
-  it. Its fixtures and results are kept; it just leaves the Sport tab.
+  everyone else reads. Practice times, venue, coach, details, fixtures and
+  results are all there once they are signed in.
+- **Delete a sport** the res no longer plays: Admin → Sports & reps →
+  Delete. It takes its fixtures, results, sign-ups and calendar entries with
+  it, and there is no undo.
+
+### Fixtures and results are one thing
+
+A result is what a fixture becomes. There is no separate "post a result"
+form.
+
+1. **Add a fixture** on the sport's page: who it is against, and when (a
+   calendar for the day, a clock for the time). It appears on everyone's
+   calendar and the people who play get told.
+2. **After kick-off has passed** the fixture moves to the top of the list
+   and asks for a score. Type it in any form that makes sense — "Won 3–1",
+   "Lost on bonus points", "Abandoned, rain".
+3. **Saving the score** moves it into Results, posts a line on the res feed
+   and notifies everyone who plays that sport. The result is dated the day
+   the game was played, not the day you typed it in.
+
+Got it wrong? Delete the result and the fixture goes back to asking for a
+score.
 
 ## Run an intersection event
 
@@ -67,10 +89,14 @@ Admin → **Intersection**:
 1. **Create the event** (name, start date, rules text).
 2. **Generate draw** — the app makes 4 random groups of 3 and the full
    fixture list. You can swap teams between groups before games start.
-3. Set times per fixture if you want them on the calendar.
-4. Enter section **rosters** (who's playing) — that's what player stats use.
-5. As games finish, open the fixture and **pick the winner** (add a score
-   note if you like — free text, any format).
+3. Set times per fixture if you want them on the calendar (a calendar for the
+   day, a clock for the time).
+4. As games finish, **pick the winner** on the fixture (add a score note if
+   you like — free text, any format).
+5. If a group ends with all three sections on one win each, the app stops and
+   asks **who goes through**. Nothing separates them on the field and there
+   are no score differences, so the HK decides, and those two knockout places
+   stay empty until you do.
 6. Standings, knockout pairings, and the leaderboard update automatically.
    Group winners advance per the fixed bracket; the final decides the
    champion. Points: 15 champion, 12 runner-up, 9 semis, 6 quarters, 3 group

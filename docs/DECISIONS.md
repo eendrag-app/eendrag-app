@@ -782,3 +782,42 @@ an account.
 **Also fixed:** iPads have claimed to be Macs since iPadOS 13, so the user
 agent alone put them in "cannot install" and hid the only instructions they
 can act on.
+
+## 2026-08-13 — A result is a fixture that has been played
+
+**Decision:** `recordFixtureResult(fixtureId, score)` replaces `postResult`.
+Entering a score on a played fixture *is* posting the result. The standalone
+"post a result" form is gone.
+
+**Why.** They were two records of one game. A rep posted a fixture with the
+opponent and the date, then later typed the opponent and the date out again
+into a result, with nothing linking the two — `sport_results.fixture_id`
+existed and was almost always null. Now the fixture is the record and the
+score is the only thing anybody types.
+
+**How "finished" is stored:** having a result is what makes a fixture done.
+The fixture row is never deleted or flagged, which keeps its calendar entry
+and its history intact, and makes deleting the result a clean undo — the
+fixture simply goes back to asking for a score.
+
+**The summary is derived** (`resultSummary`, tested): "v Wilgenhof", or
+"Played" when a fixture had no named opponent. And `played_at` is the
+fixture's own start time, so a Saturday game captured on Monday is still
+dated Saturday.
+
+**A game nobody scheduled** is added as a fixture with a date in the past. It
+lands in "waiting for a score" immediately, which is one path instead of two.
+
+## 2026-08-13 — The squad list is gone
+
+**Decision:** the Squad card on a sport's page is removed, along with the
+`user_sports` query that fed it.
+
+**Why.** It answered a question nobody was asking. It listed everyone who had
+ever ticked the sport at onboarding plus everyone who had pressed "I'm going",
+de-duplicated, which is a wider and vaguer set than the one people actually
+want: who is coming to this practice. That question is answered by tapping the
+going count, which is right next to the button.
+
+`user_sports` itself stays — it is what notification targeting uses to decide
+who hears about a sport, and it is still set on the Profile page.

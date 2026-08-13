@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, MapPin, Pencil, Trash2, X } from "lucide-react";
+import { CalendarPlus, MapPin, Pencil, Trash2, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/core/ui/date-time-picker";
 import { EmptyState } from "@/core/ui/empty-state";
-import { deleteFixture, saveFixture } from "../actions";
+import { deleteFixture, recordFixtureResult, saveFixture } from "../actions";
 
 export interface FixtureItem {
   id: string;
@@ -15,12 +16,19 @@ export interface FixtureItem {
   location: string;
   notes: string;
   whenLabel: string;
-  startsAtInput: string; // datetime-local value, for the edit form
+  startsAtInput: string; // "2026-08-20T19:00", res wall-clock
+  /** Kick-off has passed and nobody has entered a score yet. */
+  awaitingScore: boolean;
 }
 
 // Fixtures, with the rep's editing folded into the same list rather than a
 // separate admin screen — the rep manages their sport from the page everyone
 // else reads. Every save mirrors the fixture onto the shared calendar.
+//
+// A fixture is the whole life of a game. Once kick-off has passed it asks for
+// a score, and entering one turns it into the result — no second form, no
+// retyping the opponent and the date. That is why there is no "post a result"
+// button anywhere: a result is a fixture that has been played.
 export function FixtureList({
   sportId,
   fixtures,
@@ -36,6 +44,9 @@ export function FixtureList({
   const [error, setError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const router = useRouter();
+
+  const played = fixtures.filter((f) => f.awaitingScore);
+  const upcoming = fixtures.filter((f) => !f.awaitingScore);
 
   async function submit(formData: FormData) {
     setBusy(true);
@@ -61,18 +72,51 @@ export function FixtureList({
     else setError(result.error);
   }
 
+  async function saveScore(fixtureId: string, score: string) {
+    setBusy(true);
+    setError(null);
+    const result = await recordFixtureResult(fixtureId, score);
+    setBusy(false);
+    if (result.ok) router.refresh();
+    else setError(result.error);
+  }
+
   return (
     <div className="space-y-3">
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {fixtures.length === 0 && !adding ? (
+      {/* Played but unscored, above everything: it is the one thing on this
+          page waiting on somebody. */}
+      {played.length > 0 && (
+        <ul className="divide-y">
+          {played.map((fixture) => (
+            <li key={fixture.id} className="space-y-2 py-3">
+              <p className="text-sm font-medium">
+                {fixture.opponent ? `vs ${fixture.opponent}` : "Fixture"}
+              </p>
+              <p className="text-muted-foreground text-sm">{fixture.whenLabel}</p>
+              {canEdit ? (
+                <ScoreForm
+                  fixture={fixture}
+                  busy={busy}
+                  onSubmit={(score) => saveScore(fixture.id, score)}
+                />
+              ) : (
+                <p className="text-muted-foreground text-sm">Waiting for the score.</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {upcoming.length === 0 && played.length === 0 && !adding ? (
         <EmptyState
           title="No fixtures yet"
           description="Check back after the rep posts the schedule."
         />
       ) : (
         <ul className="divide-y">
-          {fixtures.map((fixture) =>
+          {upcoming.map((fixture) =>
             editing === fixture.id ? (
               <li key={fixture.id} className="py-3">
                 <FixtureForm
@@ -167,6 +211,51 @@ export function FixtureList({
   );
 }
 
+// The one field a played fixture still needs. Free text on purpose: "21–14",
+// "won on bonus points" and "abandoned, rain" are all things that happen.
+function ScoreForm({
+  fixture,
+  busy,
+  onSubmit,
+}: {
+  fixture: FixtureItem;
+  busy: boolean;
+  onSubmit: (score: string) => void;
+}) {
+  const [score, setScore] = useState("");
+
+  return (
+    <form
+      className="bg-muted/40 flex flex-wrap items-end gap-2 rounded-lg p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (score.trim() !== "") onSubmit(score);
+      }}
+    >
+      <div className="min-w-32 flex-1 space-y-1">
+        <Label htmlFor={`score-${fixture.id}`}>
+          How did it go{fixture.opponent ? ` against ${fixture.opponent}` : ""}?
+        </Label>
+        <Input
+          id={`score-${fixture.id}`}
+          value={score}
+          onChange={(e) => setScore(e.target.value)}
+          placeholder="Won 3–1"
+          className="h-11"
+        />
+      </div>
+      <Button type="submit" size="lg" className="h-11" disabled={busy || score.trim() === ""}>
+        <Trophy aria-hidden />
+        {busy ? "Saving…" : "Save result"}
+      </Button>
+      <p className="text-muted-foreground w-full text-sm">
+        This moves the fixture into Results, posts a line on the res feed, and tells everyone
+        who plays.
+      </p>
+    </form>
+  );
+}
+
 function FixtureForm({
   sportId,
   fixture,
@@ -181,6 +270,8 @@ function FixtureForm({
   onCancel: () => void;
 }) {
   const id = fixture?.id ?? "new";
+  const [startsAt, setStartsAt] = useState(fixture?.startsAtInput ?? "");
+
   return (
     <form action={onSubmit} className="bg-muted/40 space-y-3 rounded-lg p-3">
       <input type="hidden" name="sportId" value={sportId} />
@@ -198,13 +289,17 @@ function FixtureForm({
       </div>
       <div className="space-y-1">
         <Label htmlFor={`startsAt-${id}`}>When</Label>
-        <Input
+        {/* Same picker as the intersection fixtures: a calendar for the day
+            and an alarm-style clock for the time. The hidden input is what
+            the form posts, so saveFixture is unchanged. */}
+        <input type="hidden" name="startsAt" value={startsAt} />
+        <DateTimePicker
           id={`startsAt-${id}`}
-          name="startsAt"
-          type="datetime-local"
-          defaultValue={fixture?.startsAtInput ?? ""}
-          className="h-11"
-          required
+          label="When is the fixture?"
+          value={startsAt}
+          onChange={setStartsAt}
+          clearable={false}
+          className="w-full sm:w-72"
         />
       </div>
       <div className="space-y-1">
@@ -229,7 +324,12 @@ function FixtureForm({
       </div>
 
       <div className="flex gap-2">
-        <Button type="submit" size="lg" className="h-11" disabled={busy}>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-11"
+          disabled={busy || startsAt === ""}
+        >
           {busy ? "Saving…" : fixture ? "Save fixture" : "Post fixture"}
         </Button>
         <Button type="button" variant="ghost" size="lg" className="h-11" onClick={onCancel}>
@@ -239,7 +339,8 @@ function FixtureForm({
       </div>
       <p className="text-muted-foreground text-sm">
         It appears on everyone&apos;s calendar automatically, and players are told when a
-        fixture is new or moves.
+        fixture is new or moves. Once it has been played, this is where you enter the
+        score.
       </p>
     </form>
   );

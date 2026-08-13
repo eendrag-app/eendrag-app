@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Mail, MapPin, Phone, Trophy, Users } from "lucide-react";
+import { ChevronLeft, Mail, MapPin, Phone, Trophy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/core/db/server";
 import { requireProfile } from "@/core/permissions";
@@ -35,7 +35,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
     .maybeSingle();
   if (!sport) notFound();
 
-  const [fixtures, results, signups, players, mySignup] = await Promise.all([
+  const [fixtures, results, scored, signups, mySignup] = await Promise.all([
     db
       .from("sport_fixtures")
       .select("id, opponent, location, notes, starts_at")
@@ -47,12 +47,12 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
       .eq("sport_id", id)
       .order("played_at", { ascending: false })
       .limit(RECENT_RESULTS),
+    // Which fixtures are finished — every one of them, not just the recent
+    // results shown below. Reading it off that limited list would make a
+    // fixture older than the last eight results ask for its score again.
+    db.from("sport_results").select("fixture_id").eq("sport_id", id).not("fixture_id", "is", null),
     db
       .from("sport_signups")
-      .select("profile:profiles(id, full_name, section:sections(name))")
-      .eq("sport_id", id),
-    db
-      .from("user_sports")
       .select("profile:profiles(id, full_name, section:sections(name))")
       .eq("sport_id", id),
     db
@@ -66,9 +66,8 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
   const canEdit = profile.role === "admin" || sport.rep_id === profile.id;
   const now = new Date();
 
-  // Who pressed "I'm going" — the sign-ups only, which is what the count on
-  // the button means. The squad further down is a wider set (it also includes
-  // whoever listed this sport at onboarding).
+  // Who pressed "I'm going" — the sign-ups, which is what the count on the
+  // button means and what tapping it lists.
   const goingPeople: GoingPerson[] = (signups.data ?? [])
     .filter((row) => row.profile !== null)
     .map((row) => ({
@@ -78,23 +77,14 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
     }));
   const mySectionName = goingPeople.find((p) => p.id === profile.id)?.sectionName;
 
-  // The squad is "people who play this" plus "people who put their hand up",
-  // de-duplicated: signing up after listing it at onboarding is common.
-  const squad = new Map<
-    string,
-    { id: string; name: string; sectionName?: string }
-  >();
-  for (const row of [...(players.data ?? []), ...(signups.data ?? [])]) {
-    if (!row.profile) continue;
-    squad.set(row.profile.id, {
-      id: row.profile.id,
-      name: row.profile.full_name || "Someone without a name yet",
-      sectionName: row.profile.section?.name,
-    });
-  }
-
-  const upcoming: FixtureItem[] = (fixtures.data ?? [])
-    .filter((f) => new Date(f.starts_at) >= new Date(now.getTime() - 12 * 3600_000))
+  // A fixture with a result is finished and lives under Results. Everything
+  // else is still a fixture — either coming up, or played and waiting for
+  // somebody to type the score in.
+  const scoredFixtureIds = new Set(
+    (scored.data ?? []).map((r) => r.fixture_id).filter((id): id is string => id !== null),
+  );
+  const openFixtures: FixtureItem[] = (fixtures.data ?? [])
+    .filter((f) => !scoredFixtureIds.has(f.id))
     .map((f) => ({
       id: f.id,
       opponent: f.opponent,
@@ -102,6 +92,7 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
       notes: f.notes,
       whenLabel: formatDateTime(f.starts_at),
       startsAtInput: toLocalInput(f.starts_at),
+      awaitingScore: new Date(f.starts_at) < now,
     }));
 
   const recent: ResultItem[] = (results.data ?? []).map((r) => ({
@@ -234,10 +225,13 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
       <Card>
         <CardHeader>
           <CardTitle>Fixtures</CardTitle>
-          <CardDescription>Everything coming up, and on the shared calendar.</CardDescription>
+          <CardDescription>
+            Everything coming up, and on the shared calendar. Once a fixture has been
+            played, its score goes in here and it moves to Results.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <FixtureList sportId={sport.id} fixtures={upcoming} canEdit={canEdit} />
+          <FixtureList sportId={sport.id} fixtures={openFixtures} canEdit={canEdit} />
         </CardContent>
       </Card>
 
@@ -247,40 +241,6 @@ export default async function SportDetailPage({ params }: PageProps<"/sport/[id]
         </CardHeader>
         <CardContent>
           <ResultList sportId={sport.id} results={recent} canEdit={canEdit} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="size-4" aria-hidden />
-            Squad
-          </CardTitle>
-          <CardDescription>
-            Everyone who plays this or has signed up — {squad.size}{" "}
-            {squad.size === 1 ? "person" : "people"}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {squad.size === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nobody yet. Be the first — the button is up under Practice.
-            </p>
-          ) : (
-            <ul className="flex flex-wrap gap-2">
-              {[...squad.values()].map((person) => (
-                <li
-                  key={person.id}
-                  className="inline-flex items-center gap-1.5 rounded-4xl border px-2 py-1 text-sm"
-                >
-                  {person.name}
-                  {person.sectionName && (
-                    <span className="text-muted-foreground text-xs">{person.sectionName}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
         </CardContent>
       </Card>
 

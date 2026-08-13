@@ -4,6 +4,7 @@ import {
   fixtureTitle,
   practiceChanged,
   practiceSummary,
+  resultSummary,
   resultTitle,
 } from "./sport";
 
@@ -15,6 +16,21 @@ describe("fixtureTitle", () => {
   it("copes with no opponent", () => {
     expect(fixtureTitle("Hockey", "")).toBe("Hockey");
     expect(fixtureTitle("Hockey", "   ")).toBe("Hockey");
+  });
+});
+
+describe("resultSummary", () => {
+  it("names the opponent the fixture already knew about", () => {
+    expect(resultSummary("Helshoogte")).toBe("v Helshoogte");
+    // Combined with the score, this reads "Hockey: v Helshoogte 3–1".
+    expect(resultTitle("Hockey", resultSummary("Helshoogte"), "3–1")).toBe(
+      "Hockey: v Helshoogte 3–1",
+    );
+  });
+
+  it("still says something for a fixture with no opponent", () => {
+    expect(resultSummary("")).toBe("Played");
+    expect(resultSummary("  ")).toBe("Played");
   });
 });
 

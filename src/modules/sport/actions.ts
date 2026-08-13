@@ -1,13 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { removeModuleEvent, upsertModuleEvent } from "@/core/calendar";
 import { createClient } from "@/core/db/server";
 import { notify } from "@/core/notifications";
 import { requireProfile, requireRole } from "@/core/permissions";
 import { formatDateTime, fromLocalInput } from "@/core/ui/format";
-import { fixtureChange, fixtureTitle, practiceChanged, resultTitle } from "./lib/sport";
+import {
+  fixtureChange,
+  fixtureTitle,
+  practiceChanged,
+  resultSummary,
+  resultTitle,
+} from "./lib/sport";
 
 // Sport writes. Who may do what is decided by RLS (migration 0400): admins
 // anywhere, a rep only on the sport whose rep_id is them. The checks here
@@ -213,46 +220,68 @@ export async function deleteFixture(fixtureId: string, sportId: string) {
   return { ok: true as const };
 }
 
-const resultInput = z.object({
-  sportId: z.uuid(),
-  summary: z.string().trim().min(1, "Say what happened").max(300),
-  score: z.string().trim().max(60),
-  fixtureId: z.uuid().nullable(),
+const scoreInput = z.object({
+  fixtureId: z.uuid(),
+  score: z.string().trim().min(1, "What was the score?").max(60),
 });
 
 /**
- * Post a result. Three things happen: the result row, a short system
- * announcement on the feed so the whole res sees it, and one notification to
- * the people who play that sport.
+ * Enter the score for a fixture that has been played. That IS posting the
+ * result — there is no separate "post a result" form any more.
  *
- * The announcement is written as the rep, under the rep's own session — the
- * narrow insert policy added in migration 0401 is what allows it. If that
- * insert is ever refused the result still stands; the rep is told the feed
- * post did not happen rather than losing their work.
+ * A result was two jobs before: a fixture, then a result typed out again from
+ * scratch, with the opponent and the date entered twice and nothing linking
+ * the two. Now the fixture is the record, the score is the one thing anybody
+ * types, and the summary and the date come from the fixture itself. The
+ * fixture row stays exactly where it is; having a result is what makes it
+ * done, which is also what makes deleting the result a clean undo.
+ *
+ * Three things still happen on the way out: the result row, a short system
+ * announcement on the feed so the whole res sees it, and one notification to
+ * the people who play that sport. The announcement is written as the rep,
+ * under the rep's own session — the narrow insert policy from migration 0401
+ * is what allows it. If that insert is refused the result still stands; the
+ * rep is told the feed post did not happen rather than losing their work.
  */
-export async function postResult(formData: FormData) {
+export async function recordFixtureResult(fixtureId: string, score: string) {
   const profile = await requireProfile();
-  const fixtureId = String(formData.get("fixtureId") ?? "");
-  const parsed = resultInput.safeParse({
-    sportId: formData.get("sportId"),
-    summary: formData.get("summary"),
-    score: formData.get("score") ?? "",
-    fixtureId: fixtureId === "" ? null : fixtureId,
-  });
+  const parsed = scoreInput.safeParse({ fixtureId, score });
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
   const input = parsed.data;
 
-  const sport = await loadSport(input.sportId);
+  const db = await createClient();
+  const { data: fixture } = await db
+    .from("sport_fixtures")
+    .select("id, sport_id, opponent, starts_at")
+    .eq("id", input.fixtureId)
+    .maybeSingle();
+  if (!fixture) return { ok: false as const, error: "That fixture is gone" };
+
+  const sport = await loadSport(fixture.sport_id);
   if (!sport) return { ok: false as const, error: "That sport is gone" };
 
-  const db = await createClient();
+  // Entering a score twice for one fixture would post the res two
+  // announcements about the same game.
+  const { data: already } = await db
+    .from("sport_results")
+    .select("id")
+    .eq("fixture_id", input.fixtureId)
+    .maybeSingle();
+  if (already) {
+    return { ok: false as const, error: "That fixture already has a score. Delete it to redo it." };
+  }
+
+  const summary = resultSummary(fixture.opponent);
   const { data: result, error } = await db
     .from("sport_results")
     .insert({
-      sport_id: input.sportId,
-      fixture_id: input.fixtureId,
-      summary: input.summary,
+      sport_id: fixture.sport_id,
+      fixture_id: fixture.id,
+      summary,
       score: input.score,
+      // The day it was played, not the day it was captured — a rep entering
+      // Saturday's score on Monday should not see it dated Monday.
+      played_at: fixture.starts_at,
       created_by: profile.id,
     })
     .select("id")
@@ -261,7 +290,7 @@ export async function postResult(formData: FormData) {
     return { ok: false as const, error: "Only this sport's rep or an admin can post results" };
   }
 
-  const headline = resultTitle(sport.name, input.summary, input.score);
+  const headline = resultTitle(sport.name, summary, input.score);
   const { error: announcementError } = await db.from("announcements").insert({
     title: headline,
     body: "",
@@ -271,16 +300,20 @@ export async function postResult(formData: FormData) {
     published_at: new Date().toISOString(),
   });
 
-  await notify({
-    category: "sport",
-    title: headline,
-    url: `/sport/${input.sportId}`,
-    sourceModule: MODULE,
-    sourceRef: result.id,
-    audience: { kind: "sport", sportId: input.sportId },
+  // Behind the response: the fan-out is a row per person and then a push per
+  // device, and the rep is standing next to a field with a phone.
+  after(async () => {
+    await notify({
+      category: "sport",
+      title: headline,
+      url: `/sport/${fixture.sport_id}`,
+      sourceModule: MODULE,
+      sourceRef: result.id,
+      audience: { kind: "sport", sportId: fixture.sport_id },
+    });
   });
 
-  revalidatePath(`/sport/${input.sportId}`);
+  revalidatePath(`/sport/${fixture.sport_id}`);
   revalidatePath("/sport");
   revalidatePath("/");
   if (announcementError) {
@@ -316,9 +349,9 @@ export async function deleteResult(resultId: string, sportId: string) {
 /**
  * "I'm going." Own row only, and pressing it again undoes it.
  *
- * The row lives in sport_signups, which is also what the squad list is built
- * from — the button was labelled "Sign me up" when that table was named. It
- * counts people, not attendance at any particular fixture.
+ * The row lives in sport_signups. It counts people interested in the sport,
+ * not attendance at any particular fixture — tapping the count on the sport's
+ * page lists exactly these names.
  */
 export async function toggleGoing(sportId: string, going: boolean) {
   const profile = await requireProfile();
