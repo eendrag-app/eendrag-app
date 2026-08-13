@@ -830,7 +830,10 @@ export type Database = {
           is_active: boolean
           name: string
           practice_info: string
+          rep_email: string
           rep_id: string | null
+          rep_name: string
+          rep_phone: string
           updated_at: string
           venue: string
         }
@@ -842,7 +845,10 @@ export type Database = {
           is_active?: boolean
           name: string
           practice_info?: string
+          rep_email?: string
           rep_id?: string | null
+          rep_name?: string
+          rep_phone?: string
           updated_at?: string
           venue?: string
         }
@@ -854,7 +860,10 @@ export type Database = {
           is_active?: boolean
           name?: string
           practice_info?: string
+          rep_email?: string
           rep_id?: string | null
+          rep_name?: string
+          rep_phone?: string
           updated_at?: string
           venue?: string
         }
