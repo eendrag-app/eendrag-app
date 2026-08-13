@@ -17,6 +17,9 @@ export const AUTH_ERRORS = {
   needs_confirmation: "Check your email for a confirmation link, then sign in",
   not_confirmed: "Confirm your email address first — check your inbox for the link",
   not_sun_email: "Use your @sun.ac.za student email address",
+  // Deliberately says who to ask rather than "access denied": the usual cause
+  // is a resident the HK has not added yet, or a typo in their address.
+  not_on_list: "That address is not on the res list — ask the HK to add it",
   not_enabled: "That way of signing in is not switched on",
   // Supabase's own limits. The email one is the reason a res-wide signup
   // evening needs real SMTP configured — see docs/OPERATIONS.md → Auth.

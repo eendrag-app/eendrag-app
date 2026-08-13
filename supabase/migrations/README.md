@@ -13,7 +13,7 @@ together and new modules never collide:
 
 | Block | Owner |
 | --- | --- |
-| 0100–0199 | core — 0100 init, 0101 privilege-guard fix, 0102 guard order on fresh databases, 0103 grants, 0104 drop section colours, 0105 push subscriptions + notification delivery columns |
+| 0100–0199 | core — 0100 init, 0101 privilege-guard fix, 0102 guard order on fresh databases, 0103 grants, 0104 drop section colours, 0105 push subscriptions + notification delivery columns, 0106 backfill push state, 0107 verified-emails allowlist + name prefill |
 | 0200–0299 | core calendar (0200 events, 0201 upsertable source index) |
 | 0300–0399 | home (announcements) |
 | 0400–0499 | sport — 0400 init, 0401 rep system announcements, 0402 re-applies the guard from 0101 (see 0102), 0403 rep contact details + claim-on-signup, 0404 guards rep_email |
