@@ -3,7 +3,6 @@ import {
   generateDraw,
   leaderboard,
   placements,
-  playerStats,
   recalc,
   sourceLabel,
   standings,
@@ -240,27 +239,6 @@ describe("placements and leaderboard", () => {
   it("returns null placements until the final is played", () => {
     const { groups, matches } = playedOutEvent();
     expect(placements(groups, matches)).toBeNull();
-  });
-});
-
-describe("playerStats", () => {
-  it("counts rostered events and section wins in those events", () => {
-    const { groups, matches } = playedOutEvent();
-    recalc(groups, matches, name);
-    const players = [
-      { id: "p1", name: "Jaco", sectionId: "a1" }, // a1 won 2 group games
-      { id: "p2", name: "Wian", sectionId: "a3" }, // a3 won none
-      { id: "p3", name: "Neil", sectionId: "a1" }, // not rostered
-    ];
-    const rosters = [
-      { eventId: "ev", playerId: "p1" },
-      { eventId: "ev", playerId: "p2" },
-    ];
-    const stats = playerStats(players, rosters, new Map([["ev", matches]]), name);
-    const byId = new Map(stats.map((s) => [s.playerId, s]));
-    expect(byId.get("p1")).toMatchObject({ events: 1, wins: 2 });
-    expect(byId.get("p2")).toMatchObject({ events: 1, wins: 0 });
-    expect(byId.get("p3")).toMatchObject({ events: 0, wins: 0 });
   });
 });
 

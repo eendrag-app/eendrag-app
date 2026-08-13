@@ -207,25 +207,6 @@ begin
     (ev, 'final', 1, 'SF1', 'SF2', district, katstraat, katstraat, '1–2 after extra time', true,
      d0 + interval '16 hours', 121);
 
-  -- Two placeholder players per section, rostered for the completed event.
-  insert into intersection_players (name, section_id)
-  values
-    ('Johan van der Merwe', here_xvii),  ('Pieter Botha', here_xvii),
-    ('Willem Pretorius', wallstreet),    ('Dawid le Roux', wallstreet),
-    ('Christiaan Nel', ingang),          ('Ruan Fourie', ingang),
-    ('Stefan du Toit', stopstraat),      ('Heinrich Muller', stopstraat),
-    ('Jaco Steyn', katstraat),           ('Divan van Zyl', katstraat),
-    ('Marco Venter', bun_blvd),          ('Franco Joubert', bun_blvd),
-    ('Tiaan Bezuidenhout', district),    ('Wian Kruger', district),
-    ('Etienne Marais', sensasie),        ('Zander Coetzee', sensasie),
-    ('Lian Swanepoel', wineroute),       ('Armand Grobler', wineroute),
-    ('Neil Erasmus', jacaranda),         ('Wikus Olivier', jacaranda),
-    ('Gerhard Meyer', arendstraat),      ('Schalk Burger', arendstraat),
-    ('Vian de Klerk', route_61),         ('Hanro Smit', route_61);
-
-  insert into intersection_rosters (event_id, player_id)
-  select ev, p.id from intersection_players p;
-
   -- An upcoming event with no draw yet — the admin generates it in the app.
   insert into intersection_events (name, start_date, rules, status)
   values ('5-a-side Soccer', (date_trunc('day', now()) + interval '21 days')::date,

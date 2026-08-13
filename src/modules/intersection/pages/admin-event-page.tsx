@@ -4,14 +4,12 @@ import { ChevronLeft, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/core/db/server";
 import { requireRole } from "@/core/permissions";
 import { toLocalInput } from "@/core/ui/format";
 import { DeleteEventButton } from "../components/delete-event-button";
 import { DrawAdmin } from "../components/draw-admin";
 import { EventForm } from "../components/event-form";
 import { MatchAdmin, type AdminMatch, type SectionOption } from "../components/match-admin";
-import { RosterAdmin, type RosterPlayer } from "../components/roster-admin";
 import { sideLabel, stageLabel } from "../lib/copy";
 import { canClearResult, canEditGroups, canEditTeams, canRegenerateDraw } from "../lib/guards";
 import { loadEvent, loadSections } from "../lib/load";
@@ -32,12 +30,6 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
   const [event, sections] = await Promise.all([loadEvent(id), loadSections()]);
   if (!event) notFound();
 
-  const db = await createClient();
-  const [players, roster] = await Promise.all([
-    db.from("intersection_players").select("id, name, section_id").order("name"),
-    db.from("intersection_rosters").select("player_id").eq("event_id", id),
-  ]);
-  const onRoster = new Set((roster.data ?? []).map((r) => r.player_id));
 
   const nameOf = (sectionId: string) =>
     sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
@@ -65,13 +57,6 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
       clearBlockedReason: clearGuard.ok ? null : clearGuard.reason,
     };
   });
-
-  const rosterPlayers: RosterPlayer[] = (players.data ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    sectionId: p.section_id,
-    onRoster: onRoster.has(p.id),
-  }));
 
   const sectionOptions: SectionOption[] = sections;
 
@@ -148,16 +133,6 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Roster</CardTitle>
-          <CardDescription>Who is playing — this is what player stats count.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RosterAdmin eventId={event.id} players={rosterPlayers} sections={sectionOptions} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

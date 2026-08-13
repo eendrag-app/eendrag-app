@@ -2,8 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/core/db/server";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProfile } from "@/core/permissions";
 import { formatLongDate } from "@/core/ui/format";
 import { cn } from "@/lib/utils";
@@ -35,20 +34,6 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
 
   const nameOf = (sectionId: string) =>
     sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
-
-  const db = await createClient();
-  const { data: roster } = await db
-    .from("intersection_rosters")
-    .select("player:intersection_players(id, name, section_id)")
-    .eq("event_id", id);
-
-  const bySection = new Map<string, string[]>();
-  for (const row of roster ?? []) {
-    if (!row.player) continue;
-    const list = bySection.get(row.player.section_id) ?? [];
-    list.push(row.player.name);
-    bySection.set(row.player.section_id, list);
-  }
 
   const stages: Stage[] = ["group", "qf", "sf", "final"];
 
@@ -168,27 +153,6 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
           </CardHeader>
           <CardContent>
             <p className="text-sm whitespace-pre-line">{event.rules}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {bySection.size > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Who is playing</CardTitle>
-            <CardDescription>The rosters the HK entered for this event.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {sections
-              .filter((section) => bySection.has(section.id))
-              .map((section) => (
-                <div key={section.id}>
-                  <p className="text-sm font-medium">{section.name}</p>
-                  <p className="text-muted-foreground text-sm">
-                    {(bySection.get(section.id) ?? []).join(", ")}
-                  </p>
-                </div>
-              ))}
           </CardContent>
         </Card>
       )}

@@ -670,3 +670,27 @@ service is down". And its built-in mailer is rate-limited to a handful an
 hour, which **will not survive 280 students signing up in one evening**. Both
 have their own error codes and messages; the fix for the second is real SMTP
 or turning confirmation off for the pilot.
+
+## 2026-08-12 — Intersection is sections, not people
+
+**Decision:** the roster (who from each section played in an event) and the
+individual player leaderboard built on it are gone. `intersection_players` and
+`intersection_rosters` are dropped in migration 0501, along with
+`playerStats()` in `tournament.ts`, the `/intersection/players` page, and the
+Players and Roster admin cards.
+
+**Why.** Intersection is a competition between the twelve sections. The point
+of the tab is the draw, the results and the section rankings — the individual
+stats were a layer of admin (type in every name, tick every roster) whose
+output nobody was competing over. Removing it takes a job off the HK and makes
+the tab about the thing it is named after.
+
+**This dropped data.** Safe here because every row was placeholder from
+seed.sql — twenty-four invented names, `profile_id` null on all of them — and
+the res has not been onboarded. Checked before dropping, not assumed.
+
+**Dropped rather than left in place.** An unused table with live RLS policies
+is a question a future maintainer has to answer before trusting anything near
+it, and the answer costs more than the migration does. The bracket rules,
+points and section leaderboard in `tournament.ts` are untouched — that is res
+law and pinned by tests.
