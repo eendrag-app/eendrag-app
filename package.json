@@ -16,6 +16,7 @@
     "db:types": "supabase gen types typescript --linked > src/core/db/database.types.ts",
     "db:types:local": "supabase gen types typescript --local > src/core/db/database.types.ts",
     "create-admin": "node --env-file=.env.local scripts/create-admin.mjs",
+    "import-residents": "node --env-file=.env.local scripts/import-residents.mjs",
     "db:reset": "supabase db reset --linked",
     "check": "npm run typecheck && npm run lint && npm run test"
   },

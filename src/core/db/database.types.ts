@@ -862,16 +862,19 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          full_name: string
           note: string
         }
         Insert: {
           created_at?: string
           email: string
+          full_name?: string
           note?: string
         }
         Update: {
           created_at?: string
           email?: string
+          full_name?: string
           note?: string
         }
         Relationships: []
@@ -888,6 +891,7 @@ export type Database = {
           read_count: number
         }[]
       }
+      app_email_is_verified: { Args: { addr: string }; Returns: boolean }
       app_is_admin: { Args: never; Returns: boolean }
       app_is_any_sport_rep: { Args: never; Returns: boolean }
       app_is_rep_of: { Args: { sport: string }; Returns: boolean }

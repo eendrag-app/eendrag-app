@@ -8,6 +8,65 @@ Accounts and secrets live in the res password manager (ask the current prim /
 HK IT portfolio): GitHub org, Supabase project, Vercel team, and this
 document's credentials. **Nothing secret is in the repo.**
 
+## Who may create an account
+
+Two settings, and they only make sense together.
+
+**In Supabase: "Confirm email" is OFF.** Its built-in mailer is rate limited
+to a handful of messages an hour, so with confirmation on, a res-wide signup
+evening simply fails for most people. Dashboard → Authentication →
+Sign In / Providers → Email → turn **Confirm email** off → Save.
+
+**In the app: `REQUIRE_VERIFIED_EMAIL=true`.** With confirmation off, nothing
+else proves the person typing an address should be in the app at all, so the
+HK's list of residents becomes the door. An address that is not in
+`verified_emails` cannot create an account, and is told to ask the HK.
+
+Set them in that order. Turning confirmation off while the list is empty
+means anybody can sign up; filling the list first and flipping the flag first
+means nobody can.
+
+### Loading the list
+
+Export the res list to CSV with a header row. Any column order; an email
+column is required and a name column is used to pre-fill profiles:
+
+```
+email,name
+24681357@sun.ac.za,Jan de Villiers
+```
+
+```bash
+npm run import-residents -- residents.csv --dry-run
+```
+
+That reports what it would change and writes nothing. Drop `--dry-run` to
+apply. Re-running is safe: it adds and updates, and never removes.
+
+**At the end of the year**, when a whole intake leaves:
+
+```bash
+npm run import-residents -- residents-2028.csv --replace
+```
+
+`--replace` removes addresses that are no longer on the list. It does NOT
+delete anyone's account — they simply cannot create a new one. Deactivating
+the people who left is a separate job (Admin → Members).
+
+### When somebody cannot sign up
+
+Almost always one of two things: they are using a different address from the
+one on the list (a personal Gmail instead of their student address), or the
+HK has not added them yet. Add them and they can sign up immediately:
+
+```bash
+npm run import-residents -- one-person.csv
+```
+
+The check itself is `app_email_is_verified()`, a security definer function
+that answers a single yes/no. The table stays admin-only under RLS — it holds
+280 students' names and addresses, and the person asking has no account yet.
+
 ## Deploy
 
 **Live at https://eendrag-app.vercel.app** (Vercel project `eendrag-app`,

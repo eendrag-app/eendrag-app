@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/core/db/server";
-import { authMode, isSunEmail, requireSunEmail } from "./config";
+import { authMode, isSunEmail, requireSunEmail, requireVerifiedEmail } from "./config";
 import type { AuthErrorCode } from "./errors";
 import { interpretSignInError, interpretSignUp, type SignUpOutcome } from "./interpret";
 
@@ -23,6 +23,9 @@ export async function signUp(email: string, password: string): Promise<SignUpRes
   if (requireSunEmail() && !isSunEmail(email)) {
     return { ok: false, code: "not_sun_email" };
   }
+  if (requireVerifiedEmail() && !(await isOnResList(email))) {
+    return { ok: false, code: "not_on_list" };
+  }
   if (authMode() === "sun_email_magic_link") {
     // The future flow: check verified_emails, then signInWithOtp — no
     // password at all. Implemented when the flag flips; the database side
@@ -35,6 +38,22 @@ export async function signUp(email: string, password: string): Promise<SignUpRes
   // Every awkward branch of that answer is read in interpret.ts, where it can
   // be tested without a live project.
   return interpretSignUp(data, error);
+}
+
+/**
+ * Is this address on the HK's list of residents?
+ *
+ * Asked through `app_email_is_verified`, a security definer function that
+ * answers one boolean. The table itself stays admin-only under RLS — it holds
+ * 280 students' names and addresses, and the person asking this question has
+ * no account yet. A failure answers "no": if the check cannot run, the safe
+ * outcome is nobody gets in, not everybody does.
+ */
+async function isOnResList(email: string): Promise<boolean> {
+  const db = await createClient();
+  const { data, error } = await db.rpc("app_email_is_verified", { addr: email });
+  if (error) return false;
+  return data === true;
 }
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {
