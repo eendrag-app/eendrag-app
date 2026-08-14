@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionBadge } from "@/core/ui/section-badge";
 import { deleteAnnouncement, publishAnnouncement } from "../actions";
+import {
+  ShareAnnouncementButton,
+  type ShareAttachment,
+} from "./share-announcement-button";
 
 export interface AdminAnnouncement {
   id: string;
@@ -18,12 +22,24 @@ export interface AdminAnnouncement {
   isUrgent: boolean;
   sectionName: string | null;
   readCount: number | null;
+  /**
+   * What the Share button needs, or null for a post that is not live yet.
+   * Sharing a draft would put a post in the group that nobody can open.
+   */
+  share: { body: string; attachments: ShareAttachment[] } | null;
 }
 
 // The list HK works from. Open counts are numbers and only numbers: the
 // database has no policy that would let anyone read who opened a post, on
 // purpose (migration 0300).
-export function AnnouncementAdminList({ items }: { items: AdminAnnouncement[] }) {
+export function AnnouncementAdminList({
+  items,
+  appUrl,
+}: {
+  items: AdminAnnouncement[];
+  /** Absolute origin, so the shared message links back from outside the app. */
+  appUrl: string;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -91,6 +107,12 @@ export function AnnouncementAdminList({ items }: { items: AdminAnnouncement[] })
                 <Pencil aria-hidden />
                 Edit
               </Button>
+              {item.share && (
+                <ShareAnnouncementButton
+                  announcement={{ title: item.title, body: item.share.body, appUrl }}
+                  attachments={item.share.attachments}
+                />
+              )}
               {item.status !== "published" && (
                 <Button
                   variant="outline"

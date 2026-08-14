@@ -821,3 +821,49 @@ going count, which is right next to the button.
 
 `user_sports` itself stays — it is what notification targeting uses to decide
 who hears about a sport, and it is still set on the Profile page.
+
+## 2026-08-14 — Share to WhatsApp, not a WhatsApp bot
+
+**Decision:** a published announcement gets a **Share** button in the admin
+list, which hands the post and its photo or PDF to whatever the phone offers
+(WhatsApp, in practice). The app does not post to the res WhatsApp group
+itself.
+
+**Why not a bot.** Meta's official Groups API cannot see the res group: it
+only messages groups the API itself created, caps them at eight participants,
+and needs an Official Business Account. Every route into an *existing* group
+is therefore an unofficial linked-device bot — a second phone number, a
+session that has to stay alive on a server somewhere, a monthly fee if it is
+hosted, and a standing breach of WhatsApp's terms that can get the number
+banned. That is a lot of moving parts to leave to a student who has just
+cloned this repo. One tap on the phone already in the HK member's hand does
+the same job with nothing to inherit and nothing to pay for.
+
+The relay stays possible: `notifyAnnouncementPublished` in
+`src/modules/home/lib/publish.ts` is still the single place that decides what
+publishing an announcement does, and both the Publish button and the cron tick
+go through it. A future relay hooks in there, behind a toggle and an
+idempotency column, without touching anything else.
+
+**The message leads with the title in `*bold*` and ends with the link.** The
+link is the whole point — WhatsApp is the doorbell, the app is still where the
+post, the attachments and the read count live.
+
+**Long posts go as two messages.** A photo shared together with text becomes
+that photo's *caption*, and WhatsApp cuts a caption at 1024 characters, while
+an ordinary text message holds around 65 000. So when a post with a photo is
+longer than a caption holds, the button sends the post on its own first and
+then the photo on a second tap (`needsSeparatePhoto`, tested). Short posts
+still go as one message with the picture and the words together. Nothing is
+ever shortened by us: an announcement that arrives cut off is the reason
+somebody has to open two apps to find out what was actually said.
+
+**Uploaded video is left out** of the share on purpose. A 25 MB clip means
+pulling it down to the phone and pushing it back up again, and the link in the
+message plays it in the app for nothing.
+
+**Two smaller things the Web Share API forces:** iOS only allows
+`navigator.share()` while the tap that triggered it is still fresh, so the
+attachment download starts on `pointerdown` rather than on `click`; and a
+browser with no share sheet at all (desktop Firefox) falls back to copying the
+message to the clipboard, which works everywhere.

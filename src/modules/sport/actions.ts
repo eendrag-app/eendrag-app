@@ -192,6 +192,11 @@ export async function saveFixture(formData: FormData) {
   }
 
   revalidatePath(`/sport/${input.sportId}`);
+  revalidatePath("/sport");
+  // The fixture is now on the shared calendar too, so the calendar tab is
+  // stale until it is told. Easy to forget, because the write above went to a
+  // table this module never reads.
+  revalidatePath("/calendar");
   revalidatePath("/");
   return { ok: true as const };
 }
@@ -216,6 +221,8 @@ export async function deleteFixture(fixtureId: string, sportId: string) {
   await removeModuleEvent(MODULE, parsed.data.fixtureId);
 
   revalidatePath(`/sport/${parsed.data.sportId}`);
+  revalidatePath("/sport");
+  revalidatePath("/calendar");
   revalidatePath("/");
   return { ok: true as const };
 }

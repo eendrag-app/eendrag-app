@@ -74,7 +74,7 @@ insert into announcements (title, body, status, scheduled_for) values
 
 -- ---------------------------------------------------------------------------
 -- Calendar events (placeholder). Manual admin-created entries have
--- source_module null; the two mirrored sport fixtures below show what
+-- source_module null; the mirrored sport fixtures further down show what
 -- module-generated entries look like.
 -- ---------------------------------------------------------------------------
 insert into events (title, description, category, location, starts_at, ends_at) values
@@ -102,17 +102,27 @@ insert into sport_fixtures (sport_id, opponent, location, starts_at, notes) valu
   ((select id from sports where name = 'Squash'), 'Simonsberg', 'Neelsie courts',
    date_trunc('day', now()) + interval '8 days' + interval '18 hours', 'Bring your own racket if you can');
 
--- Mirror the first two fixtures into the shared calendar the same way
--- src/core/calendar does at runtime (source_module + source_ref = fixture id).
-insert into events (title, category, location, starts_at, source_module, source_ref)
-select 'Rugby vs ' || f.opponent, 'sport', f.location, f.starts_at, 'sport', f.id::text
+-- Mirror EVERY fixture into the shared calendar, exactly the way
+-- src/core/calendar does at runtime: source_module + source_ref = the fixture
+-- id, and the title built like fixtureTitle() in
+-- src/modules/sport/lib/sport.ts.
+--
+-- One set-based insert over the whole table, not a statement per fixture. The
+-- version before this named two of the three fixtures by opponent, so the
+-- third sat on the sport page and never on the calendar — which reads exactly
+-- like the mirror is broken when it is not. A statement that covers whatever
+-- is in the table cannot drift out of step with the rows above it.
+insert into events (title, description, category, location, starts_at, source_module, source_ref)
+select
+  case when f.opponent = '' then s.name else s.name || ' vs ' || f.opponent end,
+  f.notes,
+  'sport',
+  f.location,
+  f.starts_at,
+  'sport',
+  f.id::text
 from sport_fixtures f
-where f.opponent = 'Wilgenhof';
-
-insert into events (title, category, location, starts_at, source_module, source_ref)
-select 'Hockey vs ' || f.opponent, 'sport', f.location, f.starts_at, 'sport', f.id::text
-from sport_fixtures f
-where f.opponent = 'Helshoogte';
+join sports s on s.id = f.sport_id;
 
 insert into sport_results (sport_id, summary, score, played_at) values
   ((select id from sports where name = 'Rugby'), 'Beat Dagbreek at home', '24–17',
