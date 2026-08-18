@@ -23,7 +23,9 @@ before you.
 
 **Everything is on one shared Google account: `eendragapp@gmail.com`.** That
 mailbox is the recovery address for every service below, so whoever can read
-it can reset everything. Treat it as the master key.
+it can reset everything. Treat it as the master key. GitHub is the one
+exception, for now, and "GitHub is the loose end" below says what to do about
+that.
 
 **Every password lives in Bitwarden** (https://vault.bitwarden.com), in the
 Eendrag App organisation. The outgoing HK invites your address to the
@@ -36,7 +38,7 @@ day you find out.
 
 | What | Where | Owned by | You get in with |
 | --- | --- | --- | --- |
-| **Code** | GitHub org [`eendrag-app`](https://github.com/eendrag-app), repo [`eendrag-app/eendrag-app`](https://github.com/eendrag-app/eendrag-app) (public) | `eendragapp@gmail.com` | GitHub login in Bitwarden |
+| **Code** | GitHub org [`eendrag-app`](https://github.com/eendrag-app), repo [`eendrag-app/eendrag-app`](https://github.com/eendrag-app/eendrag-app) (public) | the org itself, billed to `eendragapp@gmail.com`. Its only owner today is one personal account, see below | your own GitHub account, once you are added as an org owner |
 | **The website** | Vercel project `eendrag-app`, live at https://eendrag-app.vercel.app | Vercel account `eendragapp-9642`, team `eendrag-app` | Vercel login in Bitwarden (it signs in with the Google account) |
 | **The database, logins and files** | Supabase project `wznutdfrtfsgelugtznz` ([dashboard](https://supabase.com/dashboard/project/wznutdfrtfsgelugtznz)) | `eendragapp@gmail.com` | Supabase login in Bitwarden |
 | **The email that owns all of it** | Gmail, `eendragapp@gmail.com` | itself | Google password in Bitwarden, plus the 2FA recovery codes |
@@ -45,6 +47,50 @@ Nothing else is hosted anywhere. There is no separate server, no custom
 domain, and no third party holding res data. Announcements, the calendar,
 section membership and the resident list are all rows in that one Supabase
 project.
+
+### GitHub is the loose end
+
+A GitHub organisation is not owned by an email address the way the Vercel and
+Supabase accounts are. It is its own thing (created 11 August 2026, billed to
+`eendragapp@gmail.com`), and it needs at least one human account with the
+**Owner** role. Today that is exactly one account, `OliStrauss`, personal, left
+over from the original build. The shared Google address has no GitHub login of
+its own yet.
+
+Nothing about the running app depends on that person. The repo URL, the Vercel
+connection, the `CRON_SECRET` Actions secret and the branch protection all
+belong to the org, not to him, and the site would carry on deploying if he
+vanished tomorrow. What you would lose is the ability to *change* anything:
+nobody could add a maintainer, rotate that secret, or alter branch protection,
+and the only way back would be forking the code to a fresh org and re-pointing
+Vercel at it.
+
+So do this once, and it stops being a question every year:
+
+1. **Make a GitHub account on the shared address.** Sign up with
+   `eendragapp@gmail.com` (the username `eendrag-app` is already taken by the
+   org, so something like `eendrag-app-hk`). GitHub allows a shared account
+   like this alongside personal ones. Turn on 2FA and put the password and the
+   recovery codes in Bitwarden.
+2. **Invite it as an Owner.** Org → People → Invite member → role **Owner**,
+   then accept the invite from the shared account.
+3. **Invite the incoming HK's personal account as an Owner too**, so a real
+   person with a name is on the hook during their term.
+4. **Check deploys still work before removing anyone.** Vercel → project →
+   Settings → Git. The Vercel GitHub App is installed on the org, so it
+   survives an owner leaving, but if Vercel says the connecting user lost
+   access, reconnect it while signed in as the shared account.
+5. **Now the outgoing owner removes their own account** from Org → People. Then
+   look at the repo's own Settings → Collaborators, which is a separate list
+   from org membership: `Pieter-dK` has admin there today, so decide whether
+   that stays.
+6. **Prove it.** Merge a one-word change and watch it deploy.
+
+The arrangement that comes out of that is worth keeping: **the shared account
+is the permanent owner and lives in Bitwarden, and each HK's personal account
+is added as an owner for their term and removed at handover.** Commits still
+carry real names, so the history stays honest, and the org never depends on a
+student who graduated three years ago.
 
 ### What it costs
 
@@ -90,9 +136,11 @@ Outgoing HK, do these with the incoming person sitting next to you:
 2. **The Google account.** Change the `eendragapp@gmail.com` password to a new
    one, save it in Bitwarden, and move the 2FA to their phone. Save the new
    recovery codes in Bitwarden too.
-3. **GitHub.** Add them as an owner of the `eendrag-app` org, then remove any
-   personal accounts that are still owners (`OliStrauss` is one, from the
-   original build). The org itself stays, so the repo URL never changes.
+3. **GitHub.** Add them as an owner of the `eendrag-app` org, then remove the
+   outgoing personal accounts, both from Org → People and from the repo's own
+   Settings → Collaborators. The org itself stays, so the repo URL never
+   changes. If the shared GitHub account does not exist yet, this is the
+   handover to make it on: see "GitHub is the loose end" above.
 4. **Vercel.** They sign in with the Google account, so there is nothing to
    transfer. Check they can see the `eendrag-app` project and open a
    deployment log.
