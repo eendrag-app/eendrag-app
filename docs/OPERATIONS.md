@@ -4,9 +4,11 @@ Deploying, backing up, restoring, rotating credentials, and — one day —
 moving off managed hosting. Written for a maintainer who has never operated
 this app before.
 
-Accounts and secrets live in the res password manager (ask the current prim /
-HK IT portfolio): GitHub org, Supabase project, Vercel team, and this
-document's credentials. **Nothing secret is in the repo.**
+Accounts and secrets live in Bitwarden, in the Eendrag App organisation (the
+outgoing HK invites you to it): GitHub org, Supabase project, Vercel team, and
+the shared eendragapp@gmail.com Google account that owns all three. Who owns
+what, and the handover checklist, is in **README.md, "Handover: where
+everything lives"**. **Nothing secret is in the repo.**
 
 ## Who may create an account
 
@@ -209,14 +211,15 @@ or per-table CSV from the Dashboard's Table Editor.
 ## Credential rotation (yearly, at HK handover)
 
 1. **Supabase keys** — Dashboard → Project Settings → API → rotate
-   service_role (and anon if needed). Update Vercel env vars + the password
-   manager. The anon key is public by design; service_role is the crown
+   service_role (and anon if needed). Update Vercel env vars + Bitwarden. The anon key is public by design; service_role is the crown
    jewels.
 2. **Database password** — Dashboard → Project Settings → Database → reset.
    Update `SUPABASE_DB_URL` wherever stored.
-3. **GitHub** — transfer org ownership to the incoming maintainer's account;
-   remove leavers from the org.
-4. **Vercel** — same: team membership follows the HK.
+3. **GitHub** — the `eendrag-app` org is owned by the shared
+   eendragapp@gmail.com account, so nothing is transferred: add the incoming
+   maintainer as an org owner and remove the leavers.
+4. **Vercel** — nothing to transfer either, the account signs in with the same
+   Google login. Just check the incoming maintainer can open the project.
 5. **Dev admin** — if `admin@eendrag.dev` exists anywhere hosted, delete it.
 
 ## Moving off managed hosting (the university-server path)
@@ -242,7 +245,7 @@ plain Postgres plus small substitutions.
    with `.env.local` pointing at the self-hosted Supabase URL + keys.
 5. Point DNS at the server, put its reverse proxy (Caddy/nginx) in front for
    TLS.
-6. Update `docs/` and the password manager to reflect the new home.
+6. Update `docs/` and Bitwarden to reflect the new home.
 
 What is Supabase-specific and would need attention in a bare-Postgres world
 (only if you abandon Supabase entirely): Auth (swap
