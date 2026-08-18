@@ -8,10 +8,113 @@ WhatsApp announcement group.
 Operations, backups and the move off managed hosting:
 [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
-New maintainer? Read this file, then [CLAUDE.md](CLAUDE.md) (context for AI
-sessions, useful for humans too), then [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+New maintainer? Start with **[Handover: where everything lives](#handover-where-everything-lives)**
+below (accounts, hosting, passwords), then [CLAUDE.md](CLAUDE.md) (context for
+AI sessions, useful for humans too), then [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Routine admin tasks (posting announcements, adding reps) need no developer at
 all: [docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md).
+
+## Handover: where everything lives
+
+Read this first if you are the incoming HK and nobody has explained the app
+to you. It tells you every place the app is hosted, which account owns it,
+and where the passwords are. You should need nothing else from the person
+before you.
+
+**Everything is on one shared Google account: `eendragapp@gmail.com`.** That
+mailbox is the recovery address for every service below, so whoever can read
+it can reset everything. Treat it as the master key.
+
+**Every password lives in Bitwarden** (https://vault.bitwarden.com), in the
+Eendrag App organisation. The outgoing HK invites your address to the
+collection, you accept the invite by email, and you then have the lot. No
+password is written down in this repo, in the docs, or anywhere else, and it
+should stay that way. If a login below is missing from the vault, add it the
+day you find out.
+
+### The four places it is hosted
+
+| What | Where | Owned by | You get in with |
+| --- | --- | --- | --- |
+| **Code** | GitHub org [`eendrag-app`](https://github.com/eendrag-app), repo [`eendrag-app/eendrag-app`](https://github.com/eendrag-app/eendrag-app) (public) | `eendragapp@gmail.com` | GitHub login in Bitwarden |
+| **The website** | Vercel project `eendrag-app`, live at https://eendrag-app.vercel.app | Vercel account `eendragapp-9642`, team `eendrag-app` | Vercel login in Bitwarden (it signs in with the Google account) |
+| **The database, logins and files** | Supabase project `wznutdfrtfsgelugtznz` ([dashboard](https://supabase.com/dashboard/project/wznutdfrtfsgelugtznz)) | `eendragapp@gmail.com` | Supabase login in Bitwarden |
+| **The email that owns all of it** | Gmail, `eendragapp@gmail.com` | itself | Google password in Bitwarden, plus the 2FA recovery codes |
+
+Nothing else is hosted anywhere. There is no separate server, no custom
+domain, and no third party holding res data. Announcements, the calendar,
+section membership and the resident list are all rows in that one Supabase
+project.
+
+### What it costs
+
+Nothing today. Vercel is on the free Hobby plan, Supabase on the free tier,
+GitHub is free because the repo is public. There is no card on file and no
+invoice to pass on. Two consequences worth knowing:
+
+- Vercel Hobby refuses cron jobs more often than daily, which is why the
+  five-minute tick runs from GitHub Actions instead (docs/OPERATIONS.md →
+  Scheduled work).
+- Free-tier Supabase projects pause themselves after a long quiet spell. If
+  the app is dead over a December holiday, open the dashboard and resume the
+  project before assuming something is broken.
+
+If the res ever does pay for something, put the card and the plan in this
+table so the next person is not surprised.
+
+### The secrets, and which of the four holds each one
+
+You do not need to know these values to run the app locally (see Running
+locally below, which uses a throwaway local database). You need them when you
+change production.
+
+| Secret | Lives in | What breaks without it |
+| --- | --- | --- |
+| Supabase URL, anon key, service role key | Vercel → project → Settings → Environment Variables (Production), and Bitwarden | The site cannot reach the database |
+| `CRON_SECRET` | Vercel env vars, **and** GitHub → repo → Settings → Secrets → Actions, **and** Bitwarden. All three must match | Scheduled announcements and day-of reminders never go out. The compose screen warns you |
+| Web push VAPID keys | Vercel env vars and Bitwarden | Phones do not buzz. The in-app bell keeps working |
+| Database password | Supabase dashboard, and Bitwarden | `psql` and the RLS tests cannot connect |
+
+The anon key is public by design (browsers see it). The service role key
+bypasses every security policy in the database, so it belongs in Vercel and
+Bitwarden and nowhere else, never in a screenshot, never in a WhatsApp
+message.
+
+### Handover checklist
+
+Outgoing HK, do these with the incoming person sitting next to you:
+
+1. **Bitwarden.** Invite their address to the Eendrag App organisation, watch
+   them accept, and watch them open one entry. Remove your own access last,
+   once everything else below is done.
+2. **The Google account.** Change the `eendragapp@gmail.com` password to a new
+   one, save it in Bitwarden, and move the 2FA to their phone. Save the new
+   recovery codes in Bitwarden too.
+3. **GitHub.** Add them as an owner of the `eendrag-app` org, then remove any
+   personal accounts that are still owners (`OliStrauss` is one, from the
+   original build). The org itself stays, so the repo URL never changes.
+4. **Vercel.** They sign in with the Google account, so there is nothing to
+   transfer. Check they can see the `eendrag-app` project and open a
+   deployment log.
+5. **Supabase.** Same, they sign in with the Google account. Check they can
+   open the project and the Table Editor.
+6. **Rotate what the leaver saw**: Supabase service role key and database
+   password (docs/OPERATIONS.md → Credential rotation), and update Vercel and
+   Bitwarden with the new values. Redeploy afterwards, env var changes only
+   take effect on a new deploy.
+7. **Prove it works.** Have them merge a one-word change to `main` and watch
+   the deploy land on the live site. If that works, they own it.
+
+### If you are locked out
+
+Everything resets through `eendragapp@gmail.com`, so recovering that mailbox
+is the whole problem. If Bitwarden has the Google password and the 2FA
+recovery codes, you are fine. If it does not, and nobody can read that
+mailbox, then GitHub, Vercel and Supabase are all unreachable and the app
+cannot be changed, only viewed. The database would have to be restored from a
+backup into a fresh project (docs/OPERATIONS.md → Restore) and everything
+rebuilt around it. This is the one failure the repo cannot answer, which is
+why the recovery codes belong in Bitwarden today, not next term.
 
 ## Prerequisites
 
@@ -84,8 +187,8 @@ convenience only — never create it on the production project.
 ## Environment variables
 
 All of them are listed with explanations in [.env.example](.env.example).
-`.env.local` is gitignored; real production values live in the password
-manager and the Vercel project settings, never in the repo.
+`.env.local` is gitignored; real production values live in Bitwarden and the
+Vercel project settings, never in the repo (see Handover above).
 
 One worth knowing about: **`CRON_SECRET`**. It protects `/api/cron/tick`,
 which publishes scheduled announcements and sends day-of reminders. Without
