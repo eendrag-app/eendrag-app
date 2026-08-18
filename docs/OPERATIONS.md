@@ -211,13 +211,15 @@ or per-table CSV from the Dashboard's Table Editor.
 ## Credential rotation (yearly, at HK handover)
 
 1. **Supabase keys** — Dashboard → Project Settings → API → rotate
-   service_role (and anon if needed). Update Vercel env vars + Bitwarden. The anon key is public by design; service_role is the crown
-   jewels.
+   service_role (and anon if needed). Update Vercel env vars + Bitwarden. The
+   anon key is public by design; service_role is the crown jewels.
 2. **Database password** — Dashboard → Project Settings → Database → reset.
    Update `SUPABASE_DB_URL` wherever stored.
-3. **GitHub** — the `eendrag-app` org is owned by the shared
-   eendragapp@gmail.com account, so nothing is transferred: add the incoming
-   maintainer as an org owner and remove the leavers.
+3. **GitHub** — the `eendrag-app` org is its own entity, so nothing is
+   transferred: add the incoming maintainer as an org owner, then remove the
+   leavers from Org → People and from the repo's Settings → Collaborators.
+   Keeping a shared account as permanent owner is README.md, "GitHub is the
+   loose end".
 4. **Vercel** — nothing to transfer either, the account signs in with the same
    Google login. Just check the incoming maintainer can open the project.
 5. **Dev admin** — if `admin@eendrag.dev` exists anywhere hosted, delete it.
