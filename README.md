@@ -104,6 +104,10 @@ invoice to pass on. Two consequences worth knowing:
 - Free-tier Supabase projects pause themselves after a long quiet spell. If
   the app is dead over a December holiday, open the dashboard and resume the
   project before assuming something is broken.
+- **The free tier takes no backups.** None — not daily, not point-in-time.
+  The only copy of this database is the nightly dump this repo takes itself
+  (docs/OPERATIONS.md → Backups). Paying for Supabase Pro would add 7 days of
+  managed daily backups; until then, do not delete the workflow.
 
 If the res ever does pay for something, put the card and the plan in this
 table so the next person is not surprised.
@@ -120,6 +124,8 @@ change production.
 | `CRON_SECRET` | Vercel env vars, **and** GitHub → repo → Settings → Secrets → Actions, **and** Bitwarden. All three must match | Scheduled announcements and day-of reminders never go out. The compose screen warns you |
 | Web push VAPID keys | Vercel env vars and Bitwarden | Phones do not buzz. The in-app bell keeps working |
 | Database password | Supabase dashboard, and Bitwarden | `psql` and the RLS tests cannot connect |
+| `SUPABASE_DB_URL` | GitHub → repo → Settings → Secrets → Actions, and Bitwarden | The nightly backup cannot connect and the workflow fails |
+| `BACKUP_PASSPHRASE` | GitHub Actions secrets, and Bitwarden | **Every nightly backup becomes permanently unreadable.** Nothing else uses it, and it cannot be recovered |
 
 The anon key is public by design (browsers see it). The service role key
 bypasses every security policy in the database, so it belongs in Vercel and

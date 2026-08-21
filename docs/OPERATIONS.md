@@ -167,38 +167,65 @@ downtime).
 
 ## Backups
 
-Two independent layers:
+**The Supabase free tier takes no backups at all.** Not daily ones, not
+point-in-time recovery, nothing — their own docs tell free projects to dump
+their own data and keep it off-site. Daily backups with 7-day retention start
+on Pro ($25/month) and PITR is a further paid add-on. Until somebody decides
+to pay, the nightly dump below is the ONLY copy of this database that exists.
 
-1. **Supabase automatic backups** — the hosted project takes daily backups
-   (retention depends on plan; check Dashboard → Database → Backups).
-   Point-in-time recovery if the plan includes it.
-2. **Our own nightly dump** — belt and braces, and the thing that makes us
-   portable. A scheduled GitHub Action (`.github/workflows/backup.yml`, if
-   present) or any machine with cron runs:
+Nothing in the app soft-deletes either. Deleting an announcement, a fixture or
+an intersection event runs a real `DELETE` and the row is gone. Restoring last
+night's dump is the only undo there is.
 
-   ```bash
-   npx supabase db dump --db-url "$SUPABASE_DB_URL" -f "backup-$(date +%F).sql"
-   ```
+**The nightly dump** — `.github/workflows/backup.yml` runs at 02:15 SAST every
+night, dumps roles + schema + data, encrypts the result and keeps it as a
+workflow artifact for 30 days. Download one from the Actions tab → Nightly
+backup → any run → Artifacts.
 
-   Store dumps somewhere that is not the same Supabase project (the HK
-   Google Drive, an S3 bucket — anywhere durable). Keep at least 30 days.
+It needs two repository secrets (Settings → Secrets and variables → Actions):
 
-Storage files (announcement attachments) matter less than the database, but
-`npx supabase storage cp -r ss:///announcement-attachments ./attachments-backup`
-copies them out.
+| Secret | What it is |
+| --- | --- |
+| `SUPABASE_DB_URL` | Connection string from Supabase → Project Settings → Database |
+| `BACKUP_PASSPHRASE` | A long random passphrase you generate. **Store it in Bitwarden.** |
+
+> **The passphrase is not optional and it is not recoverable.** This
+> repository is public, and so is every artifact uploaded to it — an
+> unencrypted dump would publish every resident's name, email and push
+> subscription. Lose the passphrase and all 30 backups are unreadable.
+
+To take one by hand before a risky migration: Actions → Nightly backup → Run
+workflow.
+
+Storage files (announcement attachments) are not in the dump. They matter less
+than the database, but `npx supabase storage cp -r ss:///announcement-attachments
+./attachments-backup` copies them out.
+
+**What the dump does not cover:** the `auth` schema is managed by Supabase and
+is not included, so a restore into a *fresh* project brings back all the data
+but not the logins — people sign up again, and you re-run `npm run
+create-admin`. Restoring into the *same* project keeps the logins, which is
+the case that actually matters when someone deletes a few rows.
 
 ## Restore (test this once a year, before you need it)
 
-Into a fresh or wiped database:
+Download the artifact from the Actions tab and unzip it, then:
 
 ```bash
-psql "$TARGET_DB_URL" -f backup-2027-03-01.sql
+gpg --decrypt --output backup.sql backup-2027-03-01.sql.gpg
+psql "$TARGET_DB_URL" -f backup.sql
 ```
 
-That single command is the whole restore — the dump contains schema and
-data. Then point the app's env vars at the target and redeploy. To restore
-into the same Supabase project, Dashboard → Database → Backups → Restore is
-usually simpler.
+`gpg` asks for `BACKUP_PASSPHRASE` (it is in Bitwarden). The dump contains
+roles, schema and data in that order, so this restores into an EMPTY database
+— a fresh Supabase project, or one you have just reset. It will not merge into
+a database that already has these tables.
+
+To recover a handful of rows somebody deleted rather than the whole thing,
+restore into a throwaway project first and copy out just what you need. That
+is almost always what you actually want, and it never risks the live data.
+
+Then point the app's env vars at the target and redeploy.
 
 ## Data export (someone asks for "all the data")
 
