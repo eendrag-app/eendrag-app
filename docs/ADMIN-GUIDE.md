@@ -130,6 +130,37 @@ needs to log in to view.
   → admin), and remove the role from outgoing ones.
 - **New first-years:** they sign themselves up in the app and pick their
   section during onboarding. Nothing for you to do.
+- **Start the new intersection season:** Intersection admin → Season → **Start
+  a new season**. Type the name of the season you are ending (the app tells
+  you which), name the new one, done. See below for what it does.
+
+## Start a new intersection season
+
+Once a year the competition begins again and the leaderboard goes back to
+zero. That is one button: **Intersection admin → Season → Start a new season**.
+
+**Nothing is deleted.** The season that ends keeps every event, fixture,
+result and rules page exactly as it was, and stays readable under past
+seasons. The new season starts empty with every section on nothing. You are
+asked to type the ending season's name first, so this cannot happen by a
+misclick.
+
+Got it wrong, or started it a week early? Start a season again and name it
+after the one you just closed. The events you archived are untouched — there
+is nothing to recover because nothing was lost.
+
+This is why there is no "three admins must agree" rule on it. An approval vote
+protects against one person acting alone, but it cannot stop three people
+agreeing to something wrong, and with a handful of admin accounts one person
+leaving would lock the reset for good. The action is harmless instead, which
+is better than making it hard.
+
+**Carried-over points.** A section can start a season on points it brought in
+from before the app was keeping score — that is how the 2026 leaderboard
+works, since the season was already part-played when the app took over. When
+any exist, the leaderboard says so underneath, because the events listed will
+not add up to the totals above. A new season starts everyone on zero unless
+somebody sets otherwise.
 
 ## Rules of thumb
 

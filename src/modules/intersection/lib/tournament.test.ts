@@ -16,6 +16,10 @@ import {
 // rules here ARE the competition — don't change expectations without HK
 // agreeing the format itself changed.
 
+// The live scheme, matching the old app's POINTS (see
+// 0504_intersection_points_scheme.sql for why these numbers and not others).
+const POINTS = { champion: 12, runnerUp: 8, semis: 5, quarters: 3, group: 0 };
+
 const SECTIONS = [
   "here-xvii",
   "wallstreet",
@@ -281,7 +285,7 @@ function tieGroupA(groups: Group[], matches: Match[]) {
 }
 
 describe("placements and leaderboard", () => {
-  it("assigns tiers and default points 15/12/9/6/3", () => {
+  it("assigns tiers and scores them 12/8/5/3/0", () => {
     const { groups, matches } = playedOutEvent();
     recalc(groups, matches, name);
     for (const stage of ["qf", "sf", "final"] as const) {
@@ -300,25 +304,75 @@ describe("placements and leaderboard", () => {
     expect(pl.get("b2")).toBe("quarters"); // lost QF1
 
     const sections = groups.flatMap((g) => g.sectionIds.map((id) => ({ id, name: id })));
-    const rows = leaderboard(sections, [{ groups, matches }], {
-      champion: 15,
-      runnerUp: 12,
-      semis: 9,
-      quarters: 6,
-      group: 3,
-    });
+    const rows = leaderboard(sections, [{ groups, matches }], POINTS);
     const byId = new Map(rows.map((r) => [r.sectionId, r]));
-    expect(byId.get("a1")!.points).toBe(15);
+    expect(byId.get("a1")!.points).toBe(12);
     expect(byId.get("a1")!.eventsWon).toBe(1);
-    expect(byId.get("a3")!.points).toBe(3); // group exit
+    expect(byId.get("a3")!.points).toBe(0); // group exit scores nothing
     const total = rows.reduce((s, r) => s + r.points, 0);
-    // 1×15 + 1×12 + 2×9 + 4×6 + 4×3 = 81
-    expect(total).toBe(81);
+    // 1×12 + 1×8 + 2×5 + 4×3 + 4×0 = 42 points per event, as the old app's
+    // README says.
+    expect(total).toBe(42);
   });
 
   it("returns null placements until the final is played", () => {
     const { groups, matches } = playedOutEvent();
     expect(placements(groups, matches)).toBeNull();
+  });
+
+  // Carried-over points: what a section starts the season on, from before the
+  // competition was being recorded in this app. Pinned because the leaderboard
+  // the res reads is mostly made of these — see 0503_intersection_seasons.sql.
+  it("starts sections on their carried-over points", () => {
+    const sections = [
+      { id: "a", name: "Sensasie" },
+      { id: "b", name: "Wineroute" },
+      { id: "c", name: "Ingang" },
+    ];
+    const carry = new Map([
+      ["a", 65],
+      ["b", 14],
+    ]);
+    const rows = leaderboard(sections, [], POINTS, carry);
+
+    // Order comes from the carried totals when nothing has been played yet.
+    expect(rows.map((r) => r.name)).toEqual(["Sensasie", "Wineroute", "Ingang"]);
+    expect(rows[0].points).toBe(65);
+    expect(rows[0].carry).toBe(65);
+    // A section with no carry entry starts on nothing rather than undefined.
+    expect(rows[2].points).toBe(0);
+    expect(rows[2].carry).toBe(0);
+  });
+
+  it("adds event points on top of the carried total", () => {
+    const { groups, matches } = playedOutEvent();
+    recalc(groups, matches, name);
+    for (const stage of ["qf", "sf", "final"] as const) {
+      for (const m of matches.filter((m) => m.stage === stage)) {
+        recalc(groups, matches, name);
+        m.winnerId = m.teamAId;
+        m.played = true;
+      }
+    }
+    recalc(groups, matches, name);
+
+    const sections = groups.flatMap((g) => g.sectionIds.map((id) => ({ id, name: id })));
+    const carry = new Map([["a1", 40]]);
+    const rows = leaderboard(sections, [{ groups, matches }], POINTS, carry);
+    const winner = rows.find((r) => r.sectionId === "a1")!;
+
+    expect(winner.carry).toBe(40);
+    expect(winner.points).toBe(40 + POINTS.champion);
+    expect(winner.eventsWon).toBe(1);
+  });
+
+  it("leaves every section on zero when no carry is given", () => {
+    const sections = [
+      { id: "a", name: "Alpha" },
+      { id: "b", name: "Bravo" },
+    ];
+    const rows = leaderboard(sections, [], POINTS);
+    expect(rows.every((r) => r.points === 0 && r.carry === 0)).toBe(true);
   });
 });
 

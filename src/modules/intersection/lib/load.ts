@@ -33,6 +33,13 @@ export interface SectionRow {
   name: string;
 }
 
+export interface SeasonRow {
+  id: string;
+  name: string;
+  startedOn: string;
+  archivedAt: string | null;
+}
+
 function toMatch(row: {
   id: string;
   stage: string;
@@ -73,14 +80,62 @@ export async function loadSections(): Promise<SectionRow[]> {
   return data ?? [];
 }
 
-/** Every event with its groups and matches, newest first. */
-export async function loadEvents(): Promise<LoadedEvent[]> {
+/**
+ * Every season, current one first, then most recently archived.
+ * The current season is the single row with archived_at null — the database
+ * enforces that there is only ever one (0503_intersection_seasons.sql).
+ */
+export async function loadSeasons(): Promise<SeasonRow[]> {
   const db = await createClient();
+  const { data } = await db
+    .from("intersection_seasons")
+    .select("id, name, started_on, archived_at")
+    .order("started_on", { ascending: false });
+  const rows = (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    startedOn: row.started_on,
+    archivedAt: row.archived_at,
+  }));
+  return rows.sort((a, b) => Number(!!a.archivedAt) - Number(!!b.archivedAt));
+}
+
+export async function loadCurrentSeason(): Promise<SeasonRow | null> {
+  const seasons = await loadSeasons();
+  return seasons.find((s) => !s.archivedAt) ?? null;
+}
+
+/**
+ * Points each section starts the given season on. Empty for a season that
+ * ran from its first event, which is every season after this one.
+ */
+export async function loadCarry(seasonId: string): Promise<Map<string, number>> {
+  const db = await createClient();
+  const { data } = await db
+    .from("intersection_season_carry")
+    .select("section_id, points")
+    .eq("season_id", seasonId);
+  return new Map((data ?? []).map((row) => [row.section_id, row.points]));
+}
+
+/**
+ * Every event with its groups and matches, newest first. Scoped to one season
+ * when given a season id — which the pages always do, so an archived season's
+ * events never leak into the current leaderboard.
+ */
+export async function loadEvents(seasonId?: string): Promise<LoadedEvent[]> {
+  const db = await createClient();
+  // Built in two steps rather than a ternary so the .select() string stays one
+  // literal — supabase-js infers the row type from it, and a query assembled
+  // out of branches types as `unknown`.
+  let eventQuery = db
+    .from("intersection_events")
+    .select("id, name, start_date, rules, status")
+    .order("start_date", { ascending: false, nullsFirst: false });
+  if (seasonId) eventQuery = eventQuery.eq("season_id", seasonId);
+
   const [events, groups, teams, matches] = await Promise.all([
-    db
-      .from("intersection_events")
-      .select("id, name, start_date, rules, status")
-      .order("start_date", { ascending: false, nullsFirst: false }),
+    eventQuery,
     db
       .from("intersection_groups")
       .select("id, event_id, name, first_section_id, second_section_id"),
@@ -145,11 +200,13 @@ export async function loadPoints() {
     .select("points_champion, points_runner_up, points_semis, points_quarters, points_group")
     .eq("id", 1)
     .single();
+  // Fallbacks match the column defaults in 0504_intersection_points_scheme.sql
+  // and the old intersection app's POINTS — 42 points to an event.
   return {
-    champion: data?.points_champion ?? 15,
-    runnerUp: data?.points_runner_up ?? 12,
-    semis: data?.points_semis ?? 9,
-    quarters: data?.points_quarters ?? 6,
-    group: data?.points_group ?? 3,
+    champion: data?.points_champion ?? 12,
+    runnerUp: data?.points_runner_up ?? 8,
+    semis: data?.points_semis ?? 5,
+    quarters: data?.points_quarters ?? 3,
+    group: data?.points_group ?? 0,
   };
 }

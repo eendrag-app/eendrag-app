@@ -7,7 +7,8 @@ import { EmptyState } from "@/core/ui/empty-state";
 import { formatLongDate } from "@/core/ui/format";
 import { EventForm } from "../components/event-form";
 import { PointsForm } from "../components/points-form";
-import { loadEvents, loadPoints } from "../lib/load";
+import { SeasonForm } from "../components/season-form";
+import { loadCurrentSeason, loadEvents, loadPoints, loadSeasons } from "../lib/load";
 
 export const metadata = { title: "Intersection admin" };
 
@@ -16,7 +17,15 @@ export const metadata = { title: "Intersection admin" };
 export default async function IntersectionAdminPage() {
   await requireRole("admin");
 
-  const [events, points] = await Promise.all([loadEvents(), loadPoints()]);
+  const [season, seasons, points] = await Promise.all([
+    loadCurrentSeason(),
+    loadSeasons(),
+    loadPoints(),
+  ]);
+  // Only this season's events. Past seasons are read-only history — they are
+  // reached from the public page, not edited here.
+  const events = season ? await loadEvents(season.id) : [];
+  const archived = seasons.filter((s) => s.archivedAt);
 
   return (
     <div className="space-y-4">
@@ -33,7 +42,8 @@ export default async function IntersectionAdminPage() {
         <CardHeader>
           <CardTitle>Events</CardTitle>
           <CardDescription>
-            Open one to draw it, set times, and enter results.
+            {season ? `Season ${season.name}. ` : ""}Open one to draw it, set times, and enter
+            results.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -93,6 +103,30 @@ export default async function IntersectionAdminPage() {
         </CardHeader>
         <CardContent>
           <PointsForm values={points} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Season</CardTitle>
+          <CardDescription>
+            {season
+              ? `Running: ${season.name}, started ${formatLongDate(new Date(`${season.startedOn}T12:00:00Z`))}.`
+              : "No season is running."}
+            {archived.length > 0
+              ? ` ${archived.length} past ${archived.length === 1 ? "season" : "seasons"} kept.`
+              : ""}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {season ? (
+            <SeasonForm currentName={season.name} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              No current season — check the database, one row in intersection_seasons should
+              have no archived_at.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

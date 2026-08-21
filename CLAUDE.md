@@ -103,12 +103,28 @@ branch + PR (`gh pr create`), conventional commits.
 
 - `npm run typecheck` runs `next typegen` first — plain `tsc` alone fails on
   Next's generated `PageProps`/`LayoutProps` types.
-- The old Intersection app (repo `OliStrauss/eendrag-intersection`, deployed
-  on Render+Neon) is still live until the intersection module reaches
-  parity. Its tournament rules are already ported —
+- The old Intersection app (repo `OliStrauss/eendrag-intersection`, now on
+  **Cloudflare Workers + D1** — it moved off Render+Neon) is still live until
+  the intersection module reaches parity, and it is the **scoreboard of
+  record** while it is. Its tournament rules are already ported —
   `src/modules/intersection/lib/tournament.ts`, behaviour pinned by tests.
-  The bracket format (4 groups of 3, A1–B2/C1–D2/B1–A2/D1–C2, 15/12/9/6/3
-  points) is res law — never change it silently.
+  The bracket format (4 groups of 3, A1–B2/C1–D2/B1–A2/D1–C2) is res law —
+  never change it silently. Points are **12/8/5/3/0** (42 to an event),
+  matching that app; this repo shipped 15/12/9/6/3 by mistake and
+  `0504_intersection_points_scheme.sql` corrects it.
+  Its data comes across via `npm run import-intersection` — it reads the old
+  app's own backup JSON and mirrors it into the current season.
+- **The intersection resets by season, not by deletion.** "Start new season"
+  (Intersection admin) archives the running season and opens an empty one;
+  nothing is ever deleted, so a mistake is undone by archiving again. Events
+  belong to a season and the leaderboard only ever counts the current one.
+  There is no multi-admin approval on purpose — see
+  `0503_intersection_seasons.sql` for why a harmless action beats a
+  destructive one behind a vote.
+- **Carried-over points** (`intersection_season_carry`) are what each section
+  started the season on, from before either app was keeping score. They are
+  most of the current leaderboard, so a total will not equal the sum of the
+  events listed under it. The page says so when any carry exists.
 - The `section` notification category is "section-only mode", an opt-in
   noise filter — NOT "notify me about my section". Semantics pinned in
   `src/core/notifications/targeting.test.ts`.

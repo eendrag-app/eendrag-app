@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -213,6 +208,7 @@ export type Database = {
           id: string
           name: string
           rules: string
+          season_id: string
           start_date: string | null
           status: string
           updated_at: string
@@ -222,6 +218,7 @@ export type Database = {
           id?: string
           name: string
           rules?: string
+          season_id?: string
           start_date?: string | null
           status?: string
           updated_at?: string
@@ -231,11 +228,20 @@ export type Database = {
           id?: string
           name?: string
           rules?: string
+          season_id?: string
           start_date?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "intersection_events_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "intersection_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       intersection_group_teams: {
         Row: {
@@ -411,6 +417,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      intersection_season_carry: {
+        Row: {
+          points: number
+          season_id: string
+          section_id: string
+        }
+        Insert: {
+          points?: number
+          season_id: string
+          section_id: string
+        }
+        Update: {
+          points?: number
+          season_id?: string
+          section_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intersection_season_carry_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "intersection_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intersection_season_carry_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intersection_seasons: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          name: string
+          started_on: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          started_on?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          started_on?: string
+        }
+        Relationships: []
       }
       intersection_settings: {
         Row: {
@@ -897,6 +960,7 @@ export type Database = {
       app_is_rep_of: { Args: { sport: string }; Returns: boolean }
       app_role: { Args: never; Returns: string }
       app_section_id: { Args: never; Returns: string }
+      intersection_current_season: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -1032,3 +1096,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

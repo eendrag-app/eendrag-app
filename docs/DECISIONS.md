@@ -867,3 +867,70 @@ message plays it in the app for nothing.
 attachment download starts on `pointerdown` rather than on `click`; and a
 browser with no share sheet at all (desktop Firefox) falls back to copying the
 message to the clipboard, which works everywhere.
+
+## 2026-08-21 — The intersection resets by archiving, not by deleting
+
+**Decision:** the once-a-year reset creates a new season and stamps the old
+one archived. Nothing is deleted, ever. One admin does it, confirming by
+typing the name of the season they are ending.
+
+**Why:** the ask was for a hard reset that at least three admins had to agree
+to. Two things were wrong with that.
+
+The first is arithmetic. There are three admin accounts in total, one of them
+the placeholder `admin@eendrag.dev` that OPERATIONS says to delete at
+handover. "Three admins agree" is therefore unanimity, and the year one HK
+member leaves in June, the reset locks permanently — with no way out that
+does not involve a developer and a SQL console, which is exactly the failure
+this repo exists to avoid.
+
+The second is what an approval count actually buys. It stops one person
+acting alone. It does nothing about several people agreeing to the wrong
+thing, which — at the end of a year, with a new HK learning the app — is the
+likelier mistake. And the free Supabase tier has no backups, so a wrong
+delete would be final.
+
+Archiving removes the need for the vote instead of strengthening it. If the
+worst outcome of a misclick is "the new season started a week early", one
+person can safely be trusted with it, and the confirmation is a speed bump
+rather than a lock. A harmless action beats a destructive action behind a
+vote.
+
+**Cost:** events now belong to a season, so every query that builds the
+leaderboard is scoped to the current one (`loadEvents(seasonId)`), and old
+seasons accumulate rows forever. At roughly twenty fixtures an event and a
+handful of events a year, "forever" is some tens of kilobytes a season.
+
+**Rejected:** a `reset_requests` table with approvals, per the original ask —
+above. Soft-deleting individual events with a trash bin — solves a different
+problem (one wrong delete, not the annual reset) and is still worth doing
+separately.
+
+## 2026-08-21 — The old intersection app is the scoreboard of record
+
+**Decision:** where the two apps disagree about the competition, the old one
+wins, and this repo changes to match.
+
+Three leaderboard point schemes were live at once: 12/8/5/3/0 in the old app,
+12/8/6/3/0 hand-edited into this database, and 15/12/9/6/3 in this repo's
+migration default — the last of which CLAUDE.md called res law and told
+future sessions never to change silently.
+
+**Why:** res law is what the res plays to, and the res has been reading the
+old app all season. A rule written down in this repo that contradicts the
+scoreboard everyone is looking at is a bug in the repo, not a rule. So
+0504 moves this app to 12/8/5/3/0 (42 points an event, as the old app's README
+says) and CLAUDE.md is corrected in the same change rather than left to
+argue with the migration.
+
+Nothing already scored moved: no event in either app has a played final yet,
+so the numbers had never been applied to anything.
+
+The bracket format — 4 groups of 3, A1–B2/C1–D2/B1–A2/D1–C2 — is untouched.
+That part really is res law, and it is pinned by tests.
+
+**Also corrected:** the section is **District 12**, not "District". The old
+app hit the same bug and fixed it there first. The two apps have to agree on
+section names while both are live, because `npm run import-intersection`
+matches sections by name and a mismatch would silently drop a twelfth of the
+competition. Migration 0108.
