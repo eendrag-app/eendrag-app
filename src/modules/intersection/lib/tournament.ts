@@ -345,22 +345,31 @@ export interface LeaderboardRow {
   name: string;
   points: number;
   eventsWon: number;
+  /** Points the section started the season on, already included in `points`. */
+  carry: number;
 }
 
 /**
  * The season leaderboard across completed events. Points count once an
  * event's final is played.
+ *
+ * `carry` is what each section started the season on — the totals the
+ * competition brought in from before it was being recorded here. Sections
+ * missing from the map start on nothing, which is the normal case for any
+ * season that ran from its first event.
  */
 export function leaderboard(
   sections: Array<{ id: string; name: string }>,
   completedEvents: Array<{ groups: Group[]; matches: Match[] }>,
   points: LeaderboardPoints,
+  carry: ReadonlyMap<string, number> = new Map(),
 ): LeaderboardRow[] {
   const rows: LeaderboardRow[] = sections.map((s) => ({
     sectionId: s.id,
     name: s.name,
-    points: 0,
+    points: carry.get(s.id) ?? 0,
     eventsWon: 0,
+    carry: carry.get(s.id) ?? 0,
   }));
   const byId = new Map(rows.map((r) => [r.sectionId, r]));
   for (const ev of completedEvents) {

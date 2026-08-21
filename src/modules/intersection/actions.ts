@@ -10,8 +10,22 @@ import { notify } from "@/core/notifications";
 import { requireRole } from "@/core/permissions";
 import { formatDateTime, fromLocalInput } from "@/core/ui/format";
 import { calendarTitle, positionMove, resultHeadline } from "./lib/copy";
-import { canClearResult, canEditGroups, canEditTeams, canRegenerateDraw } from "./lib/guards";
-import { loadEvent, loadEvents, loadPoints, loadSections, type LoadedEvent } from "./lib/load";
+import {
+  canClearResult,
+  canEditGroups,
+  canEditTeams,
+  canRegenerateDraw,
+  canStartSeason,
+} from "./lib/guards";
+import {
+  loadCarry,
+  loadCurrentSeason,
+  loadEvent,
+  loadEvents,
+  loadPoints,
+  loadSections,
+  type LoadedEvent,
+} from "./lib/load";
 import {
   generateDraw,
   leaderboard,
@@ -89,16 +103,25 @@ async function recalcAndPersist(eventId: string): Promise<LoadedEvent | null> {
   return { ...event, status };
 }
 
+/**
+ * The table exactly as /intersection shows it — same season, same carried-over
+ * points. It feeds the "Katstraat move to 1st" line on a result notification,
+ * so if it were computed any other way the notification would announce a
+ * position nobody can see on the page.
+ */
 async function currentLeaderboard(): Promise<LeaderboardRow[]> {
-  const [events, sections, points] = await Promise.all([
-    loadEvents(),
+  const [season, sections, points] = await Promise.all([
+    loadCurrentSeason(),
     loadSections(),
     loadPoints(),
   ]);
+  if (!season) return [];
+  const [events, carry] = await Promise.all([loadEvents(season.id), loadCarry(season.id)]);
   return leaderboard(
     sections,
     events.filter((e) => e.status === "completed"),
     points,
+    carry,
   );
 }
 
@@ -656,5 +679,73 @@ export async function savePoints(formData: FormData) {
 
   revalidatePath("/intersection");
   revalidatePath("/intersection/admin");
+  return { ok: true as const };
+}
+
+// --- seasons ----------------------------------------------------------------
+
+const newSeasonInput = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "The new season needs a name")
+    .max(60, "That name is too long"),
+  // The admin types the name of the season they are ENDING. Not a checkbox:
+  // the point is to make it impossible to do this by reflex on the wrong year.
+  confirm: z.string().trim(),
+});
+
+/**
+ * End the current season and start a new one — the once-a-year reset.
+ *
+ * NOTHING IS DELETED. The season that ends is stamped archived_at and every
+ * event, fixture and result stays attached to it, readable under Past seasons.
+ * The new season starts empty, with every section on zero. Done by mistake, it
+ * is undone by archiving the new season again; no data was ever at risk.
+ *
+ * That is why there is no multi-admin approval here. An approval quorum guards
+ * against one person acting alone, but it cannot stop several people agreeing
+ * to the wrong thing, and with three admin accounts it would mean unanimity —
+ * so the year one HK leaves early, the reset locks. A harmless action with a
+ * deliberate confirmation beats a destructive action behind a vote.
+ */
+export async function startNewSeason(formData: FormData) {
+  await requireRole("admin");
+  const parsed = newSeasonInput.safeParse({
+    name: formData.get("name"),
+    confirm: formData.get("confirm"),
+  });
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+
+  const current = await loadCurrentSeason();
+  if (!current) return { ok: false as const, error: "There is no season to end" };
+
+  const guard = canStartSeason(current.name, parsed.data.confirm, parsed.data.name);
+  if (!guard.ok) return { ok: false as const, error: guard.reason };
+
+  const db = await createClient();
+  // Archive first. The database allows only one season with archived_at null
+  // (0503), so inserting first would fail this on the unique index — and
+  // failing in that order would leave the old season archived with no new one
+  // to replace it.
+  const { error: archiveError } = await db
+    .from("intersection_seasons")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", current.id);
+  if (archiveError) return { ok: false as const, error: "Could not close the current season" };
+
+  const { error: createError } = await db
+    .from("intersection_seasons")
+    .insert({ name: parsed.data.name });
+  if (createError) {
+    // Put it back rather than leaving the competition with no current season.
+    await db.from("intersection_seasons").update({ archived_at: null }).eq("id", current.id);
+    return { ok: false as const, error: "Could not start the new season" };
+  }
+
+  revalidatePath("/intersection");
+  revalidatePath("/intersection/admin");
+  revalidatePath("/");
+  refresh();
   return { ok: true as const };
 }

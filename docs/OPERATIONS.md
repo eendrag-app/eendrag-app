@@ -251,6 +251,34 @@ or per-table CSV from the Dashboard's Table Editor.
    Google login. Just check the incoming maintainer can open the project.
 5. **Dev admin** — if `admin@eendrag.dev` exists anywhere hosted, delete it.
 
+## Mirroring the old intersection app
+
+The old competition app (`OliStrauss/eendrag-intersection`, Cloudflare Workers
++ D1) is still live and is the **scoreboard of record** until this module
+reaches parity. While both are running, bring its data across after each event:
+
+1. In the old app: Admin -> Settings -> **Download backup** (one JSON file).
+2. `npm run import-intersection -- eendrag-backup-2026-08-21.json --dry-run`
+3. Read what it says it will do, then run it again without `--dry-run`.
+
+It sets the carried-over points and **replaces every event in the current
+season** with the events in the file. That is a mirror, not a merge — running
+it twice is safe, running it against a season you have edited by hand in this
+app is not. Past seasons are never touched.
+
+Sections are matched by name, and it refuses to write anything if a name does
+not match, rather than importing eleven twelfths of a competition.
+
+If the old app's admin password is lost, the same document comes straight out
+of D1:
+
+```bash
+npx wrangler d1 execute eendrag --remote --json   --command "SELECT data FROM app_state WHERE id = 1"
+```
+
+Unwrap `.[0].results[0].data`, which is itself JSON, and feed that to the
+importer.
+
 ## Moving off managed hosting (the university-server path)
 
 The app is a container + plain Postgres, so the move is mechanical. On the

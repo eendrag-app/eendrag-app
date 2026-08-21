@@ -95,6 +95,9 @@ describe("positionMove", () => {
     name,
     points,
     eventsWon: 0,
+    // Irrelevant here: positionMove compares positions, not where the points
+    // came from.
+    carry: 0,
   });
 
   it("reports a move up the table", () => {

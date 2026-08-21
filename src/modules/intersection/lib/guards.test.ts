@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { canClearResult, canEditGroups, canEditTeams, canRegenerateDraw } from "./guards";
+import {
+  canClearResult,
+  canEditGroups,
+  canEditTeams,
+  canRegenerateDraw,
+  canStartSeason,
+} from "./guards";
 import type { Match } from "./tournament";
 
 // These are res law as much as the bracket is: the old app refused these
@@ -87,5 +93,29 @@ describe("overriding a pairing by hand", () => {
 
   it("is not offered once the match has been played", () => {
     expect(canEditTeams({ ...qf1, played: true }).ok).toBe(false);
+  });
+});
+
+describe("canStartSeason", () => {
+  it("refuses until the current season's name is typed back", () => {
+    const guard = canStartSeason("2026", "", "2027");
+    expect(guard.ok).toBe(false);
+    if (!guard.ok) expect(guard.reason).toContain("2026");
+  });
+
+  it("refuses a confirmation for a different season", () => {
+    // The failure this exists to stop: ending 2026 while thinking about 2027.
+    expect(canStartSeason("2026", "2027", "2027").ok).toBe(false);
+  });
+
+  it("accepts the name whatever the case and spacing", () => {
+    expect(canStartSeason("2026", " 2026 ", "2027").ok).toBe(true);
+    expect(canStartSeason("Season A", "season a", "Season B").ok).toBe(true);
+  });
+
+  it("refuses a new season with the same name as the old one", () => {
+    const guard = canStartSeason("2026", "2026", "2026");
+    expect(guard.ok).toBe(false);
+    if (!guard.ok) expect(guard.reason).toContain("different name");
   });
 });

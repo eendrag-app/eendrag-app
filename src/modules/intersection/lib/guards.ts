@@ -80,3 +80,27 @@ export function canEditTeams(match: Match): Guard {
   }
   return OK;
 }
+
+/**
+ * May this season be ended and the next one started?
+ *
+ * The reset is not destructive — archiving keeps every event and result — so
+ * this is a speed bump against acting on autopilot, not a lock. It asks the
+ * admin to type the name of the season they are ENDING, which is the one thing
+ * a misclick cannot produce.
+ *
+ * Trimmed and case-insensitive on purpose: "2026 " and "2026" are the same
+ * intention, and this is not a password.
+ */
+export function canStartSeason(currentName: string, confirm: string, newName: string): Guard {
+  if (confirm.trim().toLowerCase() !== currentName.trim().toLowerCase()) {
+    return {
+      ok: false,
+      reason: `Type ${currentName} exactly to confirm you are ending that season`,
+    };
+  }
+  if (newName.trim().toLowerCase() === currentName.trim().toLowerCase()) {
+    return { ok: false, reason: "The new season needs a different name" };
+  }
+  return OK;
+}

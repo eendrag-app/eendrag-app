@@ -7,7 +7,7 @@ import { EmptyState } from "@/core/ui/empty-state";
 import { formatDateTime, formatLongDate } from "@/core/ui/format";
 import { cn } from "@/lib/utils";
 import { teamsLabel } from "../lib/copy";
-import { loadEvents, loadPoints, loadSections } from "../lib/load";
+import { loadCarry, loadCurrentSeason, loadEvents, loadPoints, loadSections } from "../lib/load";
 import { leaderboard, placements } from "../lib/tournament";
 
 export const metadata = { title: "Intersection" };
@@ -18,18 +18,28 @@ export const metadata = { title: "Intersection" };
 // are admin-only.
 export default async function IntersectionPage() {
   // Signed out (which this page must work for) simply means no highlight.
-  const [events, sections, points, profile] = await Promise.all([
-    loadEvents(),
+  const [season, sections, points, profile] = await Promise.all([
+    loadCurrentSeason(),
     loadSections(),
     loadPoints(),
     getProfile(),
   ]);
+  // Scoped to the season that is running: an archived season's events and its
+  // carried-over totals never reach this page.
+  const [events, carry] = season
+    ? await Promise.all([loadEvents(season.id), loadCarry(season.id)])
+    : [[], new Map<string, number>()];
+
   const mySectionId = profile?.section_id ?? null;
   const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
 
   const completed = events.filter((event) => event.status === "completed");
-  const table = leaderboard(sections, completed, points);
+  const table = leaderboard(sections, completed, points, carry);
   const anyPoints = table.some((row) => row.points > 0);
+  // Points brought in from before this app was keeping score. When they exist,
+  // the events listed below will not add up to the totals above, so the table
+  // says so rather than looking wrong.
+  const anyCarry = table.some((row) => row.carry > 0);
 
   return (
     <div className="space-y-4">
@@ -42,9 +52,9 @@ export default async function IntersectionPage() {
             Leaderboard
           </CardTitle>
           <CardDescription>
-            Points across every finished event: {points.champion} for winning it,{" "}
-            {points.runnerUp} runner-up, {points.semis} semis, {points.quarters} quarters,{" "}
-            {points.group} for the group stage.
+            {season ? `Season ${season.name}. ` : ""}Points across every finished event:{" "}
+            {points.champion} for winning it, {points.runnerUp} runner-up, {points.semis}{" "}
+            semis, {points.quarters} quarters, {points.group} for the group stage.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -86,6 +96,12 @@ export default async function IntersectionPage() {
                 );
               })}
             </ol>
+          )}
+          {anyCarry && (
+            <p className="text-muted-foreground mt-3 text-sm">
+              Totals include the points each section carried into the season, from before the
+              app was keeping score — so the events below will not add up to the table above.
+            </p>
           )}
         </CardContent>
       </Card>

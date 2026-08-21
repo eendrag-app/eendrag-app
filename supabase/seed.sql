@@ -24,7 +24,7 @@ insert into sections (name, sort_order) values
   ('Stopstraat',    4),
   ('Katstraat',     5),
   ('Bun Boulevard', 6),
-  ('District',      7),
+  ('District 12',   7),
   ('Sensasie',      8),
   ('Wineroute',     9),
   ('Jacaranda',     10),
@@ -133,7 +133,7 @@ insert into sport_results (sport_id, summary, score, played_at) values
 -- ---------------------------------------------------------------------------
 -- Intersection (placeholder): one COMPLETED event with a full bracket, one
 -- upcoming event without a draw, players and rosters.
--- Bracket result: Katstraat champion, District runner-up.
+-- Bracket result: Katstraat champion, District 12 runner-up.
 -- ---------------------------------------------------------------------------
 do $$
 declare
@@ -152,7 +152,7 @@ begin
   select id into stopstraat  from sections where name = 'Stopstraat';
   select id into katstraat   from sections where name = 'Katstraat';
   select id into bun_blvd    from sections where name = 'Bun Boulevard';
-  select id into district    from sections where name = 'District';
+  select id into district    from sections where name = 'District 12';
   select id into sensasie    from sections where name = 'Sensasie';
   select id into wineroute   from sections where name = 'Wineroute';
   select id into jacaranda   from sections where name = 'Jacaranda';
