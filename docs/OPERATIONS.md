@@ -186,8 +186,18 @@ It needs two repository secrets (Settings → Secrets and variables → Actions)
 
 | Secret | What it is |
 | --- | --- |
-| `SUPABASE_DB_URL` | Connection string from Supabase → Project Settings → Database |
+| `SUPABASE_DB_URL` | Connection string — **Connect** button at the top of the Supabase dashboard, then **Session pooler**. See the warning below |
 | `BACKUP_PASSPHRASE` | A long random passphrase you generate. **Store it in Bitwarden.** |
+
+> **Use the Session pooler string, not the Direct connection one.** There is no
+> longer a Settings → Database page; the connection strings are behind the
+> **Connect** button in the dashboard header, and it offers three. Direct
+> connection is the natural pick for `pg_dump` and it will fail here: it is
+> IPv6-only unless you pay for the IPv4 add-on, and GitHub Actions runners are
+> IPv4. Transaction pooler (port 6543) does not support prepared statements
+> and is wrong for dumps. **Session pooler** (port 5432) is IPv4 on every tier
+> and is the one that works. Remember to substitute your database password
+> where the string says `[YOUR-PASSWORD]`.
 
 > **The passphrase is not optional and it is not recoverable.** This
 > repository is public, and so is every artifact uploaded to it — an
