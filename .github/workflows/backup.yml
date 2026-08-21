@@ -30,8 +30,14 @@
 #
 # SETUP (once): add two repository secrets under Settings -> Secrets and
 # variables -> Actions:
-#   SUPABASE_DB_URL     the connection string from Supabase -> Project
-#                       Settings -> Database (the same value as in .env.local)
+#   SUPABASE_DB_URL     the connection string: the "Connect" button at the top
+#                       of the Supabase dashboard -> SESSION POOLER (port 5432),
+#                       with your database password substituted in.
+#                       NOT the Direct connection string, however much it looks
+#                       like the right one: direct is IPv6-only without the paid
+#                       IPv4 add-on and GitHub runners are IPv4, so it fails
+#                       every night. Not the Transaction pooler (6543) either —
+#                       no prepared statements, so pg_dump cannot use it.
 #   BACKUP_PASSPHRASE   a long random passphrase you generate yourself and
 #                       store in Bitwarden. Nothing else uses it.
 name: Nightly backup
