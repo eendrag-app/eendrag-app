@@ -187,7 +187,16 @@ It needs two repository secrets (Settings → Secrets and variables → Actions)
 | Secret | What it is |
 | --- | --- |
 | `SUPABASE_DB_URL` | Connection string — **Connect** button at the top of the Supabase dashboard, then **Session pooler**. See the warning below |
-| `BACKUP_PASSPHRASE` | A long random passphrase you generate. **Store it in Bitwarden.** |
+| `BACKUP_PASSPHRASE` | A long random passphrase you generate yourself. Nothing else uses it. **Store it in Bitwarden.** |
+
+> **Three different passwords get confused here.** Your *Supabase account
+> login* signs you into supabase.com and never belongs in a connection string.
+> The *database password* is a separate credential for the Postgres `postgres`
+> role — that is the one inside `SUPABASE_DB_URL`, and it is reset from the
+> dashboard under **Database → Settings**, not Project Settings. The
+> *backup passphrase* is something you invent, used only to encrypt the dump.
+> Resetting the database password causes no downtime: the live site never uses
+> it, reaching Postgres over HTTPS with the anon and service-role keys instead.
 
 > **Use the Session pooler string, not the Direct connection one.** There is no
 > longer a Settings → Database page; the connection strings are behind the
