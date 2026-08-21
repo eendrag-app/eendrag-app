@@ -1,0 +1,136 @@
+# Takes a full copy of the database every night and keeps it for 30 days.
+#
+# WHY THIS EXISTS: the Supabase free tier has NO automatic backups of any kind
+# (their docs tell free projects to dump their own data and keep it off-site),
+# and nothing in this app soft-deletes. An HK who deletes the wrong
+# announcement deletes it for good. This workflow is the only thing standing
+# between that and a lost season.
+#
+# THINGS TO KNOW
+#
+#   * THE DUMP IS ENCRYPTED, AND IT HAS TO BE. This repository is PUBLIC, and
+#     so is every artifact a workflow uploads to it. A plain dump would put
+#     every resident's name, email address and push subscription on the open
+#     internet. It is encrypted with a passphrase before it is ever written to
+#     disk here, so what gets uploaded is ciphertext.
+#     LOSE THE PASSPHRASE AND EVERY BACKUP IS LANDFILL — it lives in Bitwarden
+#     next to the other credentials, and it is not recoverable from anywhere
+#     else.
+#   * Restoring is in docs/OPERATIONS.md -> Restore. Test it once a year,
+#     before you need it, on a throwaway Supabase project.
+#   * GitHub Actions minutes are free and unlimited on PUBLIC repositories. If
+#     this repo ever goes private, a nightly run is still comfortably inside
+#     the free allowance (unlike cron-tick.yml, which is not).
+#   * GitHub DISABLES scheduled workflows after 60 days with no repository
+#     activity and emails the admins. Over a quiet December that can happen —
+#     re-enable it from the Actions tab. Check the Actions tab after any long
+#     break and make sure last night's run is there.
+#   * A failed run emails whoever owns the repo. Silence means it worked; it
+#     does not mean nobody looked.
+#
+# SETUP (once): add two repository secrets under Settings -> Secrets and
+# variables -> Actions:
+#   SUPABASE_DB_URL     the connection string from Supabase -> Project
+#                       Settings -> Database (the same value as in .env.local)
+#   BACKUP_PASSPHRASE   a long random passphrase you generate yourself and
+#                       store in Bitwarden. Nothing else uses it.
+name: Nightly backup
+
+on:
+  schedule:
+    # 00:15 UTC = 02:15 in Johannesburg, which is the quietest the app gets.
+    - cron: "15 0 * * *"
+  # Lets you take a backup by hand from the Actions tab — do this before any
+  # migration that changes data you cannot rebuild.
+  workflow_dispatch:
+
+# Two backups at once would just waste minutes and confuse the artifact list.
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check the secrets are set
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL repository secret is not set — see the top of this file."
+            exit 1
+          fi
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "BACKUP_PASSPHRASE repository secret is not set — see the top of this file."
+            exit 1
+          fi
+
+      - name: Name the backup
+        id: name
+        run: echo "stamp=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      # Pinned rather than "latest" so a CLI release can never break the
+      # backup quietly. Bump it deliberately, same as any other dependency.
+      - name: Install the Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      # Three dumps, because `db dump` on its own is SCHEMA ONLY — the roles
+      # and the rows are separate flags. This is the triple Supabase's own
+      # migration guide uses, concatenated into one file so a restore is one
+      # command instead of three in the right order.
+      - name: Dump the database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f data.sql
+          cat roles.sql schema.sql data.sql > "backup-${{ steps.name.outputs.stamp }}.sql"
+          rm -f roles.sql schema.sql data.sql
+          ls -lh "backup-${{ steps.name.outputs.stamp }}.sql"
+
+      # An empty or truncated dump uploaded on schedule is worse than no
+      # backup, because it looks like one. 20 kB is far below a real dump of
+      # this database and far above anything pg_dump writes when it fails.
+      - name: Refuse to upload an empty backup
+        run: |
+          set -euo pipefail
+          file="backup-${{ steps.name.outputs.stamp }}.sql"
+          size=$(stat -c%s "$file")
+          if [ "$size" -lt 20000 ]; then
+            echo "Dump is only ${size} bytes — treating that as a failed dump, not a backup."
+            exit 1
+          fi
+          grep -q "CREATE TABLE" "$file" || { echo "No CREATE TABLE in the dump — refusing it."; exit 1; }
+
+      # Symmetric AES-256, passphrase from the secret on stdin so it never
+      # appears in a command line or a log. The plaintext .sql is deleted in
+      # the same step: nothing unencrypted survives to the upload.
+      - name: Encrypt it
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          file="backup-${{ steps.name.outputs.stamp }}.sql"
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --quiet \
+            --passphrase-fd 0 --pinentry-mode loopback \
+            --symmetric --cipher-algo AES256 \
+            --output "${file}.gpg" "$file"
+          shred -u "$file" 2>/dev/null || rm -f "$file"
+          ls -lh "${file}.gpg"
+
+      - name: Upload it
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ steps.name.outputs.stamp }}
+          path: backup-${{ steps.name.outputs.stamp }}.sql.gpg
+          # 30 days of nightly backups. GitHub deletes them after that, which
+          # is the retention docs/OPERATIONS.md promises.
+          retention-days: 30
+          if-no-files-found: error
