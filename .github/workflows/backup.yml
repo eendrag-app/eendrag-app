@@ -74,6 +74,48 @@ jobs:
             exit 1
           fi
 
+      # Postgres answers a malformed connection string with "password
+      # authentication failed", which sends you hunting for a password problem
+      # you do not have. These are the two ways the string is actually wrong,
+      # named plainly. Nothing derived from the secret is ever echoed.
+      - name: Check the connection string is the right shape
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          case "$SUPABASE_DB_URL" in
+            *"[YOUR-PASSWORD]"*|*"[PASSWORD]"*|*"YOUR-PASSWORD"*)
+              echo "SUPABASE_DB_URL still contains the [YOUR-PASSWORD] placeholder."
+              echo "Substitute the real database password (Supabase dashboard -> Settings"
+              echo "-> General, or reset it there) and update the secret."
+              exit 1 ;;
+          esac
+
+          user="${SUPABASE_DB_URL#*://}"; user="${user%%:*}"
+          host="${SUPABASE_DB_URL##*@}"
+
+          case "$host" in
+            *pooler.supabase.com*)
+              # The shared pooler is multi-tenant: it needs to know WHICH
+              # project you are, and the only place that appears is the
+              # username. "postgres" alone is the DIRECT connection's username
+              # and the pooler rejects it as a bad password.
+              case "$user" in
+                *.*) ;;
+                *)
+                  echo "SUPABASE_DB_URL points at the Supabase pooler but its username has no"
+                  echo "project reference, so the pooler cannot tell which project to open."
+                  echo
+                  echo "The pooler username is 'postgres.<project-ref>', not plain 'postgres'."
+                  echo "Do not hand-edit it: open the Supabase dashboard, click Connect in the"
+                  echo "header, choose Session pooler, and copy that string whole — the correct"
+                  echo "username is already in it. Then substitute only the password."
+                  echo
+                  echo "Postgres reports this as 'password authentication failed', which it is not."
+                  exit 1 ;;
+              esac ;;
+          esac
+          echo "Connection string looks well-formed."
+
       - name: Name the backup
         id: name
         run: echo "stamp=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"

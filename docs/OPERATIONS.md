@@ -198,6 +198,14 @@ It needs two repository secrets (Settings → Secrets and variables → Actions)
 > and is wrong for dumps. **Session pooler** (port 5432) is IPv4 on every tier
 > and is the one that works. Remember to substitute your database password
 > where the string says `[YOUR-PASSWORD]`.
+>
+> **Copy the whole pooler string; do not assemble it by hand.** The pooler is
+> multi-tenant, so it works out which project you are from the *username* —
+> which is `postgres.<project-ref>`, not plain `postgres`. Take the pooler
+> host but keep the direct connection's `postgres` username and you get
+> `FATAL: password authentication failed`, which sends you hunting for a
+> password problem you do not have. The workflow now checks for this before it
+> tries to connect and says so in plain words.
 
 > **The passphrase is not optional and it is not recoverable.** This
 > repository is public, and so is every artifact uploaded to it — an
