@@ -8,7 +8,7 @@ import { formatLongDate } from "@/core/ui/format";
 import { EventForm } from "../components/event-form";
 import { PointsForm } from "../components/points-form";
 import { SeasonForm } from "../components/season-form";
-import { loadCurrentSeason, loadEvents, loadPoints, loadSeasons } from "../lib/load";
+import { loadCarry, loadCurrentSeason, loadEvents, loadPoints, loadSeasons } from "../lib/load";
 
 export const metadata = { title: "Intersection admin" };
 
@@ -24,8 +24,11 @@ export default async function IntersectionAdminPage() {
   ]);
   // Only this season's events. Past seasons are read-only history — they are
   // reached from the public page, not edited here.
-  const events = season ? await loadEvents(season.id) : [];
+  const [events, carry] = season
+    ? await Promise.all([loadEvents(season.id), loadCarry(season.id)])
+    : [[], new Map<string, number>()];
   const archived = seasons.filter((s) => s.archivedAt);
+  const carriedSections = [...carry.values()].filter((points) => points > 0).length;
 
   return (
     <div className="space-y-4">
@@ -118,7 +121,19 @@ export default async function IntersectionAdminPage() {
               : ""}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          {carriedSections > 0 && (
+            // The trap this heads off: clearing the events one by one looks
+            // like a reset but leaves the carried-over points behind, and the
+            // leaderboard stays exactly where it was. Said here, next to the
+            // button that actually does it.
+            <p className="text-muted-foreground text-sm">
+              {carriedSections} sections carry points into {season?.name} from before the app
+              was keeping score. Those belong to the season, not to the events — deleting
+              every event will <strong>not</strong> clear them and the leaderboard will not
+              go back to zero. Starting a new season does both.
+            </p>
+          )}
           {season ? (
             <SeasonForm currentName={season.name} />
           ) : (

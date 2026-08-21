@@ -160,7 +160,15 @@ from before the app was keeping score — that is how the 2026 leaderboard
 works, since the season was already part-played when the app took over. When
 any exist, the leaderboard says so underneath, because the events listed will
 not add up to the totals above. A new season starts everyone on zero unless
-somebody sets otherwise.
+somebody sets otherwise, and 2026 is expected to be the only season that ever
+has them.
+
+> **Deleting every event is NOT the year-end reset.** Carried-over points
+> belong to the season, not to the events. Delete all twelve events and the
+> leaderboard still shows Sensasie on 65 — because that 65 never came from an
+> event. **Start a new season** is the thing that takes every section back to
+> zero, and it does not require deleting anything. The Season panel says so
+> too, whenever the running season has carried-over points.
 
 ## Rules of thumb
 
