@@ -209,7 +209,7 @@ change production.
 | Supabase URL, anon key, service role key | Vercel → project → Settings → Environment Variables (Production), and Bitwarden | The site cannot reach the database |
 | `CRON_SECRET` | Vercel env vars, **and** GitHub → repo → Settings → Secrets → Actions, **and** Bitwarden. All three must match | Scheduled announcements and day-of reminders never go out. The compose screen warns you |
 | Web push VAPID keys | Vercel env vars and Bitwarden | Phones do not buzz. The in-app bell keeps working |
-| Database password | Supabase dashboard (Settings → General, or reset it there), and Bitwarden | `psql`, the RLS tests and the nightly backup cannot connect |
+| Database password | Supabase dashboard → **Database → Settings** (not *Project* Settings), and Bitwarden | `psql`, the RLS tests and the nightly backup cannot connect |
 | `SUPABASE_DB_URL` | GitHub → repo → Settings → Secrets → Actions, and Bitwarden. Get the value from the dashboard's **Connect** button → **Session pooler**, copied whole (not Direct — it is IPv6-only and GitHub runners are IPv4; and the pooler needs its `postgres.<project-ref>` username, so do not hand-edit it) | The nightly backup cannot connect and the workflow fails |
 | `BACKUP_PASSPHRASE` | GitHub Actions secrets, and Bitwarden | **Every nightly backup becomes permanently unreadable.** Nothing else uses it, and it cannot be recovered |
 

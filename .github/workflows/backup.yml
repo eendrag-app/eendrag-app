@@ -85,8 +85,9 @@ jobs:
           case "$SUPABASE_DB_URL" in
             *"[YOUR-PASSWORD]"*|*"[PASSWORD]"*|*"YOUR-PASSWORD"*)
               echo "SUPABASE_DB_URL still contains the [YOUR-PASSWORD] placeholder."
-              echo "Substitute the real database password (Supabase dashboard -> Settings"
-              echo "-> General, or reset it there) and update the secret."
+              echo "Substitute the real DATABASE password — not your Supabase account"
+              echo "login. It is a separate credential, and it is reset from the dashboard"
+              echo "under Database -> Settings (NOT Project Settings), then update this secret."
               exit 1 ;;
           esac
 
