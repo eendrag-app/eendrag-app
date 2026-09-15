@@ -13,10 +13,14 @@ export async function middleware(request: NextRequest) {
   // that carries a session cookie we could not verify because Supabase was
   // unreachable. Bouncing those to the login page is how a wifi hiccup turns
   // into "the app logged me out again" — see core/auth/middleware.ts.
-  const { response, maybeSignedIn } = await updateSession(request);
-
   const path = request.nextUrl.pathname;
   const isPublicPage = ALWAYS_PUBLIC.some((p) => path === p || path.startsWith(p + "/"));
+
+  // Demo mode signs visitors in on page loads only. Not on /login, /signup or
+  // /auth, so signing out and making a real account still works; not on /api,
+  // so the cron tick and feeds never create sessions.
+  const allowDemoSignIn = request.method === "GET" && !isPublicPage && !path.startsWith("/api");
+  const { response, maybeSignedIn } = await updateSession(request, { allowDemoSignIn });
   // Unrouted paths 404 on their own; treat them as not-protected.
   const needsAuth = moduleForPath(path)?.requiresAuth ?? false;
 

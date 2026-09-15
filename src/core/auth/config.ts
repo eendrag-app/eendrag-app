@@ -28,6 +28,23 @@ export function requireVerifiedEmail(): boolean {
   return process.env.REQUIRE_VERIFIED_EMAIL === "true";
 }
 
+/**
+ * Demo mode, for before launch: every visitor who is not signed in is signed
+ * in as this one shared account, so anyone with the link sees the whole app.
+ * Point it at an admin and they see the admin screens too.
+ *
+ * ON only when BOTH DEMO_LOGIN_EMAIL and DEMO_LOGIN_PASSWORD are set. Remove
+ * them (and redeploy) to put the login back — docs/OPERATIONS.md → Demo mode.
+ */
+export function demoAccount(
+  env: Record<string, string | undefined> = process.env,
+): { email: string; password: string } | null {
+  const email = env.DEMO_LOGIN_EMAIL?.trim();
+  const password = env.DEMO_LOGIN_PASSWORD;
+  if (!email || !password?.trim()) return null;
+  return { email, password };
+}
+
 export function isSunEmail(email: string): boolean {
   return email.toLowerCase().endsWith("@sun.ac.za");
 }
