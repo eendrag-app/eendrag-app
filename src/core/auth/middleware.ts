@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { User } from "@supabase/supabase-js";
+import { demoAccount } from "./config";
 
 // Session refresh for middleware. Refreshes the Supabase session cookie on
 // every request and reports who (if anyone) is signed in. Route protection
@@ -22,6 +23,9 @@ function hasSessionCookie(request: NextRequest): boolean {
 
 export async function updateSession(
   request: NextRequest,
+  // The caller decides which requests may be signed in to the demo account
+  // (page loads, not /login or /api). Only has an effect in demo mode.
+  { allowDemoSignIn = false }: { allowDemoSignIn?: boolean } = {},
 ): Promise<{ response: NextResponse; user: User | null; maybeSignedIn: boolean }> {
   let response = NextResponse.next({ request });
 
@@ -50,9 +54,20 @@ export async function updateSession(
   // genuinely signed-out visitor both come back as `user: null`, and only one
   // of them should be sent to the login page.
   const {
-    data: { user },
+    data: { user: sessionUser },
     error,
   } = await supabase.auth.getUser();
+  let user = sessionUser;
+
+  // Demo mode (core/auth/config.ts → demoAccount). A visitor with no session
+  // is signed in as the shared account right here; the cookies land on both
+  // the request (so this very render sees the session) and the response.
+  const demo = demoAccount();
+  if (!user && demo && allowDemoSignIn) {
+    const { data, error: demoError } = await supabase.auth.signInWithPassword(demo);
+    if (demoError) console.error("Demo sign-in failed:", demoError.message);
+    user = data.user;
+  }
 
   // Was this a real "no", or could we not reach Supabase to ask? An expired or
   // revoked session answers with an HTTP status (400 session-missing, 401

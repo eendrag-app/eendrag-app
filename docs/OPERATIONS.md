@@ -133,6 +133,31 @@ printf '%s' "$VALUE" | npx vercel env add NAME production
 `printf` rather than `echo`: a trailing newline in `CRON_SECRET` makes the
 deploy fail, because Vercel sends it as an HTTP header.
 
+### Demo mode (no login, before launch)
+
+Set `DEMO_LOGIN_EMAIL` and `DEMO_LOGIN_PASSWORD` for production and redeploy.
+Every visitor without a session is then signed in as that one account on
+their first page load. The pilot uses a separate admin, `demo@eendrag.dev`,
+made with `npm run create-admin -- demo@eendrag.dev <password>`. Its password
+is random and lives only in Vercel (and Bitwarden), not in this repo. Anyone
+with the link can use every screen, admin included.
+
+What that means while it is on:
+
+- **Everyone is the same person.** One profile, one set of read marks, one
+  "I'm going". A change one visitor makes, every visitor sees.
+- **Anyone can post, delete and send notifications.** Fine while the res is
+  not onboarded. Not fine after.
+- If someone switches the shared account off (Members → inactive, or a role
+  change), demo mode stops showing admin screens. Re-running
+  `npm run create-admin -- demo@eendrag.dev <password>` puts it back.
+- `/login` and `/signup` are never auto-signed-in, so "Sign out" still works
+  and a real account can still be made.
+
+**To put the login back at launch:** delete both variables in Vercel →
+Settings → Environment Variables, redeploy, and deactivate `demo@eendrag.dev`
+(Admin → Members), because everyone who visited still holds a session for it.
+
 ### One Next.js gotcha
 
 `next.config.ts` only asks for `output: "standalone"` when **not** building on
