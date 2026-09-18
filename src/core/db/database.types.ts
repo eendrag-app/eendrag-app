@@ -209,30 +209,36 @@ export type Database = {
       }
       intersection_events: {
         Row: {
+          allow_draws: boolean
           created_at: string
           id: string
           name: string
           rules: string
+          score_diff: boolean
           season_id: string
           start_date: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          allow_draws?: boolean
           created_at?: string
           id?: string
           name: string
           rules?: string
+          score_diff?: boolean
           season_id?: string
           start_date?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          allow_draws?: boolean
           created_at?: string
           id?: string
           name?: string
           rules?: string
+          score_diff?: boolean
           season_id?: string
           start_date?: string | null
           status?: string
@@ -329,10 +335,13 @@ export type Database = {
       }
       intersection_matches: {
         Row: {
+          a_score: number | null
+          b_score: number | null
           created_at: string
           event_id: string
           group_id: string | null
           id: string
+          is_draw: boolean
           manual: boolean
           note: string | null
           played: boolean
@@ -348,10 +357,13 @@ export type Database = {
           winner_section_id: string | null
         }
         Insert: {
+          a_score?: number | null
+          b_score?: number | null
           created_at?: string
           event_id: string
           group_id?: string | null
           id?: string
+          is_draw?: boolean
           manual?: boolean
           note?: string | null
           played?: boolean
@@ -367,10 +379,13 @@ export type Database = {
           winner_section_id?: string | null
         }
         Update: {
+          a_score?: number | null
+          b_score?: number | null
           created_at?: string
           event_id?: string
           group_id?: string | null
           id?: string
+          is_draw?: boolean
           manual?: boolean
           note?: string | null
           played?: boolean

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { calendarTitle, ordinal, positionMove, resultHeadline, stageLabel, teamsLabel } from "./copy";
+import {
+  calendarTitle,
+  drawHeadline,
+  formatDiff,
+  ordinal,
+  positionMove,
+  resultHeadline,
+  resultLine,
+  stageLabel,
+  teamsLabel,
+} from "./copy";
 import type { LeaderboardRow, Match } from "./tournament";
 
 const names: Record<string, string> = { kat: "Katstraat", stop: "Stopstraat", dis: "District" };
@@ -13,6 +23,9 @@ function match(partial: Partial<Match> & Pick<Match, "id" | "stage">): Match {
     teamAId: null,
     teamBId: null,
     winnerId: null,
+    draw: false,
+    aScore: null,
+    bScore: null,
     played: false,
     manual: false,
     sortOrder: 0,
@@ -110,5 +123,24 @@ describe("positionMove", () => {
   it("says nothing when nothing moved", () => {
     const table = [row("dis", "District", 12), row("kat", "Katstraat", 9)];
     expect(positionMove(table, table, "kat")).toBeNull();
+  });
+});
+
+describe("draws and scores", () => {
+  it("words a drawn game", () => {
+    expect(drawHeadline("Katstraat", "Stopstraat", "Rugby")).toBe("Katstraat drew Stopstraat — Rugby");
+  });
+
+  it("shows +2, 0 and a real minus for the difference", () => {
+    expect([2, 0, -3].map(formatDiff)).toEqual(["+2", "0", "−3"]);
+  });
+
+  it("builds the line under a played fixture", () => {
+    const base = { played: true, draw: false, aScore: null, bScore: null, note: null };
+    expect(resultLine({ ...base, aScore: 3, bScore: 1 })).toBe("3–1");
+    expect(resultLine({ ...base, draw: true, aScore: 2, bScore: 2 })).toBe("Draw · 2–2");
+    expect(resultLine({ ...base, draw: true })).toBe("Draw");
+    expect(resultLine({ ...base, note: "21–14" })).toBe("21–14");
+    expect(resultLine(base)).toBeNull();
   });
 });

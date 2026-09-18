@@ -12,36 +12,54 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { setGroupTieBreak } from "../actions";
+import { formatDiff } from "../lib/copy";
 
 export interface TiedGroup {
   id: string;
   name: string;
-  /** The three sections, all level on points. */
-  teams: Array<{ id: string; name: string }>;
+  /** The three sections in table order, with what the table ranked them on. */
+  teams: Array<{ id: string; name: string; points: number; diff: number }>;
   firstSectionId: string | null;
   secondSectionId: string | null;
 }
 
 // Who goes through when a group ends level.
 //
-// Every team in the group won one and lost one, so there is nothing left in
-// the results to separate them and no score difference to fall back on — the
-// app has never recorded scores. The res settles it on the day; this is where
-// the answer gets typed in. Until it is, both of that group's quarter-final
-// slots stay empty rather than being filled by an arbitrary sort.
-export function TieBreakAdmin({ eventId, groups }: { eventId: string; groups: TiedGroup[] }) {
+// Either all three finished level, or two did after drawing each other — and,
+// on a score difference event, they are level on difference and scores for
+// too. Nothing left in the results separates them. The res settles it on the
+// day; this is where the answer gets typed in. Until it is, both of that
+// group's quarter-final slots stay empty rather than being filled by an
+// arbitrary sort.
+export function TieBreakAdmin({
+  eventId,
+  groups,
+  scoreDiff,
+}: {
+  eventId: string;
+  groups: TiedGroup[];
+  scoreDiff: boolean;
+}) {
   if (groups.length === 0) return null;
 
   return (
     <div className="space-y-4">
       {groups.map((group) => (
-        <TieBreakRow key={group.id} eventId={eventId} group={group} />
+        <TieBreakRow key={group.id} eventId={eventId} group={group} scoreDiff={scoreDiff} />
       ))}
     </div>
   );
 }
 
-function TieBreakRow({ eventId, group }: { eventId: string; group: TiedGroup }) {
+function TieBreakRow({
+  eventId,
+  group,
+  scoreDiff,
+}: {
+  eventId: string;
+  group: TiedGroup;
+  scoreDiff: boolean;
+}) {
   const [first, setFirst] = useState(group.firstSectionId ?? "");
   const [second, setSecond] = useState(group.secondSectionId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +86,20 @@ function TieBreakRow({ eventId, group }: { eventId: string; group: TiedGroup }) 
         <Scale className="text-muted-foreground size-4" aria-hidden />
         <p className="text-sm font-medium">Group {group.name} finished level</p>
       </div>
+      <ul className="text-sm">
+        {group.teams.map((t) => (
+          <li key={t.id} className="flex justify-between gap-3 py-0.5">
+            <span className="truncate">{t.name}</span>
+            <span className="text-muted-foreground shrink-0 tabular-nums">
+              {t.points} pts
+              {scoreDiff && <> · {formatDiff(t.diff)}</>}
+            </span>
+          </li>
+        ))}
+      </ul>
       <p className="text-muted-foreground text-sm">
-        {group.teams.map((t) => t.name).join(", ")} all won one game. Nothing in the results
-        separates them, so the HK decides who goes through — and until you do, group{" "}
-        {group.name}&apos;s two knockout places stay empty.
+        Nothing in the results separates the level sections, so the HK decides who goes
+        through. Until you do, group {group.name}&apos;s two knockout places stay empty.
       </p>
 
       <div className="flex flex-wrap items-end gap-2">

@@ -16,6 +16,10 @@ export interface EventRow {
   startDate: string | null;
   rules: string;
   status: EventStatus;
+  /** Group games may end in a draw, 1 point each. */
+  allowDraws: boolean;
+  /** Every result is a score per team, and level sections rank on the difference. */
+  scoreDiff: boolean;
 }
 
 export interface MatchRow extends Match {
@@ -50,6 +54,9 @@ function toMatch(row: {
   team_a_section_id: string | null;
   team_b_section_id: string | null;
   winner_section_id: string | null;
+  is_draw: boolean;
+  a_score: number | null;
+  b_score: number | null;
   played: boolean;
   manual: boolean;
   sort_order: number;
@@ -65,6 +72,9 @@ function toMatch(row: {
     teamAId: row.team_a_section_id,
     teamBId: row.team_b_section_id,
     winnerId: row.winner_section_id,
+    draw: row.is_draw,
+    aScore: row.a_score,
+    bScore: row.b_score,
     played: row.played,
     manual: row.manual,
     sortOrder: row.sort_order,
@@ -130,7 +140,7 @@ export async function loadEvents(seasonId?: string): Promise<LoadedEvent[]> {
   // out of branches types as `unknown`.
   let eventQuery = db
     .from("intersection_events")
-    .select("id, name, start_date, rules, status")
+    .select("id, name, start_date, rules, status, allow_draws, score_diff")
     .order("start_date", { ascending: false, nullsFirst: false });
   if (seasonId) eventQuery = eventQuery.eq("season_id", seasonId);
 
@@ -143,7 +153,7 @@ export async function loadEvents(seasonId?: string): Promise<LoadedEvent[]> {
     db
       .from("intersection_matches")
       .select(
-        "id, event_id, stage, group_id, slot, source_a, source_b, team_a_section_id, team_b_section_id, winner_section_id, played, manual, sort_order, note, scheduled_at",
+        "id, event_id, stage, group_id, slot, source_a, source_b, team_a_section_id, team_b_section_id, winner_section_id, is_draw, a_score, b_score, played, manual, sort_order, note, scheduled_at",
       ),
   ]);
 
@@ -182,6 +192,8 @@ export async function loadEvents(seasonId?: string): Promise<LoadedEvent[]> {
     startDate: event.start_date,
     rules: event.rules,
     status: event.status as EventStatus,
+    allowDraws: event.allow_draws,
+    scoreDiff: event.score_diff,
     groups: groupsByEvent.get(event.id) ?? [],
     matches: matchesByEvent.get(event.id) ?? [],
   }));

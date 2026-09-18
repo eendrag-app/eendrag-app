@@ -226,6 +226,10 @@ for (const { event, groups, matches } of plan) {
       start_date: event.date || null,
       rules: event.rules || "",
       status: event.status || "upcoming",
+      // Per-event options (0505). Backups from before the old app had them
+      // simply lack the fields, which means off.
+      allow_draws: !!event.allowDraws,
+      score_diff: !!event.scoreDiff,
     })
     .select("id")
     .single();
@@ -271,6 +275,10 @@ for (const { event, groups, matches } of plan) {
       team_a_section_id: m.aId != null ? sectionIdByOldId.get(m.aId) : null,
       team_b_section_id: m.bId != null ? sectionIdByOldId.get(m.bId) : null,
       winner_section_id: m.winnerId != null ? sectionIdByOldId.get(m.winnerId) : null,
+      is_draw: !!m.draw,
+      // aScore/bScore, not the legacy scoreA/scoreB the old app deletes.
+      a_score: m.aScore ?? null,
+      b_score: m.bScore ?? null,
       note: m.note ?? null,
       played: !!m.played,
       // The old app lets an admin override a knockout pairing but does not
