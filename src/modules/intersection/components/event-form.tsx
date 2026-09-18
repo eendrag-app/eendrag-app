@@ -10,8 +10,18 @@ import { saveEvent } from "../actions";
 
 export function EventForm({
   values,
+  scoreNeededCount = 0,
 }: {
-  values: { id?: string; name: string; startDate: string; rules: string };
+  values: {
+    id?: string;
+    name: string;
+    startDate: string;
+    rules: string;
+    allowDraws: boolean;
+    scoreDiff: boolean;
+  };
+  /** Results saved before score difference was switched on, still without scores. */
+  scoreNeededCount?: number;
 }) {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -67,6 +77,41 @@ export function EventForm({
           placeholder="Seven a side, two five-minute halves. Win = 3 points, head-to-head breaks ties."
         />
       </div>
+      {/* UNCONTROLLED on purpose, with defaultChecked from the saved event.
+          React resets a form to its defaults after a form action. A
+          controlled box kept its own state while the DOM was reset under
+          it, so it showed unticked right after a successful save — the same
+          "will not stay ticked" bug the old app had. Uncontrolled, the reset
+          lands on the value the server just saved (or kept, if the save was
+          refused), which is the truth either way. */}
+      <fieldset className="space-y-1">
+        <legend className="sr-only">Scoring</legend>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="allowDraws"
+            defaultChecked={values.allowDraws}
+            className="accent-primary size-4 shrink-0"
+          />
+          Group fixtures can end in a draw (1 point each)
+        </label>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="scoreDiff"
+            defaultChecked={values.scoreDiff}
+            className="accent-primary size-4 shrink-0"
+          />
+          Enable score difference
+        </label>
+        {values.scoreDiff && scoreNeededCount > 0 && (
+          <p className="text-muted-foreground pl-6 text-sm">
+            {scoreNeededCount === 1
+              ? "1 result from before this was on needs a score. Until then it counts for nothing in the difference."
+              : `${scoreNeededCount} results from before this was on need a score. Until then they count for nothing in the difference.`}
+          </p>
+        )}
+      </fieldset>
       {error && <p className="text-destructive text-sm">{error}</p>}
       {saved && <p className="text-muted-foreground text-sm">Saved.</p>}
       <Button type="submit" size="lg" className="h-11" disabled={busy}>

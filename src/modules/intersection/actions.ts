@@ -9,7 +9,7 @@ import { createClient } from "@/core/db/server";
 import { notify } from "@/core/notifications";
 import { requireRole } from "@/core/permissions";
 import { formatDateTime, fromLocalInput } from "@/core/ui/format";
-import { calendarTitle, positionMove, resultHeadline } from "./lib/copy";
+import { calendarTitle, drawHeadline, positionMove, resultHeadline } from "./lib/copy";
 import {
   canClearResult,
   canEditGroups,
@@ -27,11 +27,15 @@ import {
   type LoadedEvent,
 } from "./lib/load";
 import {
+  canDraw,
   generateDraw,
   leaderboard,
   needsTieBreak,
   recalc,
+  scoreOutcome,
+  tieBreakFits,
   type LeaderboardRow,
+  type Stage,
 } from "./lib/tournament";
 
 // Everything that writes to the competition. Admin-only, twice: requireRole
@@ -67,10 +71,29 @@ async function recalcAndPersist(eventId: string): Promise<LoadedEvent | null> {
   if (!event) return null;
   const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
 
-  const before = event.matches.map((m) => ({ ...m }));
-  const status = recalc(event.groups, event.matches, nameOf);
-
+  const options = { scoreDiff: event.scoreDiff };
   const db = await createClient();
+
+  // The HK's call on a level group only stands while the group IS level, and
+  // only in an order the results allow. An edited result (or score difference
+  // switched on) can settle the tie, and then the table decides again.
+  for (const group of event.groups) {
+    if (!group.firstSectionId || !group.secondSectionId) continue;
+    const stillFits =
+      needsTieBreak(group, event.matches, options) &&
+      tieBreakFits(group, event.matches, group.firstSectionId, group.secondSectionId, options);
+    if (stillFits) continue;
+    await db
+      .from("intersection_groups")
+      .update({ first_section_id: null, second_section_id: null })
+      .eq("id", group.id);
+    group.firstSectionId = null;
+    group.secondSectionId = null;
+  }
+
+  const before = event.matches.map((m) => ({ ...m }));
+  const status = recalc(event.groups, event.matches, nameOf, options);
+
   for (const match of event.matches) {
     const was = before.find((m) => m.id === match.id)!;
     if (was.teamAId !== match.teamAId || was.teamBId !== match.teamBId) {
@@ -132,6 +155,8 @@ const eventInput = z.object({
   name: z.string().trim().min(1, "Give the event a name").max(120),
   startDate: z.string().nullable(),
   rules: z.string().trim().max(4000),
+  allowDraws: z.boolean(),
+  scoreDiff: z.boolean(),
 });
 
 export async function saveEvent(formData: FormData) {
@@ -143,6 +168,9 @@ export async function saveEvent(formData: FormData) {
     name: formData.get("name"),
     startDate: startDate === "" ? null : startDate,
     rules: formData.get("rules") ?? "",
+    // Tick boxes: present ("on") when ticked, absent when not.
+    allowDraws: formData.get("allowDraws") === "on",
+    scoreDiff: formData.get("scoreDiff") === "on",
   });
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
 
@@ -151,11 +179,32 @@ export async function saveEvent(formData: FormData) {
     name: parsed.data.name,
     start_date: parsed.data.startDate,
     rules: parsed.data.rules,
+    allow_draws: parsed.data.allowDraws,
+    score_diff: parsed.data.scoreDiff,
   };
 
   if (parsed.data.id) {
+    const event = await loadEvent(parsed.data.id);
+    if (!event) return { ok: false as const, error: "Unknown event" };
+    // Switching draws off would leave drawn results the event no longer allows.
+    if (!parsed.data.allowDraws && event.matches.some((m) => m.played && m.draw)) {
+      return {
+        ok: false as const,
+        error:
+          "Some fixtures ended in a draw. Clear those results before you switch draws off.",
+      };
+    }
+    // Score difference is NEVER refused, even with results already in: the old
+    // app used to, and an admin saw a tick box that would not stay ticked.
+    // Results from before have no scores; they are marked "Score needed" and
+    // count for nothing in the difference until someone types them in.
     const { error } = await db.from("intersection_events").update(row).eq("id", parsed.data.id);
     if (error) return { ok: false as const, error: "Could not save the event" };
+    // Either option can change who is ahead in a group, so the bracket is
+    // worked out again from the new ranking.
+    if (event.scoreDiff !== parsed.data.scoreDiff || event.allowDraws !== parsed.data.allowDraws) {
+      await recalcAndPersist(parsed.data.id);
+    }
     revalidateEvent(parsed.data.id);
     return { ok: true as const };
   }
@@ -349,9 +398,11 @@ export async function swapGroupTeam(eventId: string, groupId: string, slot: numb
 /**
  * Record who goes through from a group the results could not split.
  *
- * Only ever offered for a genuine three-way tie (`needsTieBreak`), and checked
- * again here rather than trusted from the form: this is the one place an admin
- * could otherwise hand-pick qualifiers out of a group somebody actually won.
+ * Only ever offered for a genuine tie (`needsTieBreak`: all three level, or
+ * two level who drew each other), and checked again here rather than trusted
+ * from the form: this is the one place an admin could otherwise hand-pick
+ * qualifiers out of a group somebody actually won. `tieBreakFits` stops the
+ * choice from reordering the sections the results DID separate.
  *
  * Passing an empty first/second clears the decision, which puts the two
  * knockout slots back to empty.
@@ -384,7 +435,8 @@ export async function setGroupTieBreak(
   if (!event) return { ok: false as const, error: "Unknown event" };
   const group = event.groups.find((g) => g.id === parsed.data.groupId);
   if (!group) return { ok: false as const, error: "Unknown group" };
-  if (!needsTieBreak(group, event.matches)) {
+  const options = { scoreDiff: event.scoreDiff };
+  if (!needsTieBreak(group, event.matches, options)) {
     return {
       ok: false as const,
       error: `Group ${group.name} is not level — the results decide who goes through`,
@@ -398,6 +450,21 @@ export async function setGroupTieBreak(
     )
   ) {
     return { ok: false as const, error: `Both sections have to be in group ${group.name}` };
+  }
+  if (
+    !clearing &&
+    !tieBreakFits(
+      group,
+      event.matches,
+      parsed.data.firstSectionId,
+      parsed.data.secondSectionId,
+      options,
+    )
+  ) {
+    return {
+      ok: false as const,
+      error: "That order goes against what the results already decided. Only the level sections can swap.",
+    };
   }
 
   const db = await createClient();
@@ -417,26 +484,107 @@ export async function setGroupTieBreak(
 
 // --- results ----------------------------------------------------------------
 
+const score = z.number().int().min(0).max(9999).nullable();
+
 const resultInput = z.object({
   matchId: z.uuid(),
-  winnerSectionId: z.uuid(),
+  winnerSectionId: z.union([z.uuid(), z.literal("")]),
+  draw: z.boolean(),
   note: z.string().trim().max(120),
+  aScore: score,
+  bScore: score,
 });
 
-export async function setResult(matchId: string, winnerSectionId: string, note: string) {
+/**
+ * What the admin sent. Which fields count depends on the event:
+ * - score difference ON: aScore and bScore, both required. The app decides
+ *   the result from them; winnerSectionId is only read when the scores are
+ *   level and a draw is not possible (a knockout, or draws off).
+ * - score difference OFF: winnerSectionId, or draw (group games of an event
+ *   that allows draws), plus the free-text note.
+ */
+export interface ResultEntry {
+  winnerSectionId?: string;
+  draw?: boolean;
+  note?: string;
+  aScore?: number | null;
+  bScore?: number | null;
+}
+
+export async function setResult(matchId: string, entry: ResultEntry) {
   await requireRole("admin");
-  const parsed = resultInput.safeParse({ matchId, winnerSectionId, note });
+  const parsed = resultInput.safeParse({
+    matchId,
+    winnerSectionId: entry.winnerSectionId ?? "",
+    draw: entry.draw ?? false,
+    note: entry.note ?? "",
+    aScore: entry.aScore ?? null,
+    bScore: entry.bScore ?? null,
+  });
   if (!parsed.success) return { ok: false as const, error: "That result is not allowed" };
 
   const db = await createClient();
   const { data: row } = await db
     .from("intersection_matches")
-    .select("id, event_id, team_a_section_id, team_b_section_id")
+    .select("id, event_id, stage, team_a_section_id, team_b_section_id")
     .eq("id", parsed.data.matchId)
     .single();
   if (!row) return { ok: false as const, error: "Unknown match" };
-  if (![row.team_a_section_id, row.team_b_section_id].includes(parsed.data.winnerSectionId)) {
-    return { ok: false as const, error: "The winner has to be one of the two teams" };
+  const teamA = row.team_a_section_id;
+  const teamB = row.team_b_section_id;
+  if (!teamA || !teamB) {
+    return { ok: false as const, error: "Both teams have to be known first" };
+  }
+  const { data: eventRow } = await db
+    .from("intersection_events")
+    .select("allow_draws, score_diff")
+    .eq("id", row.event_id)
+    .single();
+  if (!eventRow) return { ok: false as const, error: "Unknown event" };
+
+  const drawAllowed = canDraw({ stage: row.stage as Stage }, eventRow.allow_draws);
+  const picked = parsed.data.winnerSectionId;
+  let winnerId: string | null;
+  let draw = false;
+  let aScore: number | null = null;
+  let bScore: number | null = null;
+  let note: string | null;
+
+  if (eventRow.score_diff) {
+    // The scores decide, here exactly as in the admin form (scoreOutcome).
+    // A winner sent by the browser is only listened to when the scores cannot
+    // say — level, and a draw not possible.
+    aScore = parsed.data.aScore;
+    bScore = parsed.data.bScore;
+    if (aScore === null || bScore === null) {
+      return { ok: false as const, error: "Enter both scores as whole numbers" };
+    }
+    const outcome = scoreOutcome(aScore, bScore, drawAllowed);
+    if (outcome.kind === "win") {
+      winnerId = outcome.side === 0 ? teamA : teamB;
+    } else if (outcome.kind === "draw") {
+      winnerId = null;
+      draw = true;
+    } else {
+      if (picked !== teamA && picked !== teamB) {
+        return { ok: false as const, error: "The scores are level. Choose who went through." };
+      }
+      winnerId = picked;
+    }
+    // The scores replace the free-text note on these events.
+    note = null;
+  } else {
+    if (parsed.data.draw) {
+      if (!drawAllowed) return { ok: false as const, error: "This fixture cannot end in a draw" };
+      winnerId = null;
+      draw = true;
+    } else {
+      if (picked !== teamA && picked !== teamB) {
+        return { ok: false as const, error: "The winner has to be one of the two teams" };
+      }
+      winnerId = picked;
+    }
+    note = parsed.data.note === "" ? null : parsed.data.note;
   }
 
   const before = await currentLeaderboard();
@@ -444,8 +592,11 @@ export async function setResult(matchId: string, winnerSectionId: string, note: 
   const { error } = await db
     .from("intersection_matches")
     .update({
-      winner_section_id: parsed.data.winnerSectionId,
-      note: parsed.data.note === "" ? null : parsed.data.note,
+      winner_section_id: winnerId,
+      is_draw: draw,
+      a_score: aScore,
+      b_score: bScore,
+      note,
       played: true,
     })
     .eq("id", parsed.data.matchId);
@@ -458,10 +609,18 @@ export async function setResult(matchId: string, winnerSectionId: string, note: 
 
   const sections = await loadSections();
   const nameOf = (id: string) => sections.find((s) => s.id === id)?.name ?? "Unknown";
-  const loserId =
-    row.team_a_section_id === parsed.data.winnerSectionId
-      ? row.team_b_section_id
-      : row.team_a_section_id;
+  const eventName = event?.name ?? "Intersection";
+  const loserId = winnerId === teamA ? teamB : teamA;
+  const headline = winnerId
+    ? resultHeadline(nameOf(winnerId), nameOf(loserId), eventName)
+    : drawHeadline(nameOf(teamA), nameOf(teamB), eventName);
+  // "3–1" with the winner's score first, the way people say it.
+  const scoreLine =
+    aScore === null || bScore === null
+      ? null
+      : winnerId === teamB
+        ? `${bScore}–${aScore}`
+        : `${aScore}–${bScore}`;
 
   // One notification per involved section, each "about" that section so
   // section-only mode lets it through.
@@ -474,17 +633,12 @@ export async function setResult(matchId: string, winnerSectionId: string, note: 
   // already recalculated by the time this is queued; nothing the admin sees
   // depends on it (docs/DECISIONS.md).
   after(async () => {
-    for (const sectionId of [parsed.data.winnerSectionId, loserId]) {
-      if (!sectionId) continue;
+    for (const sectionId of [teamA, teamB]) {
       const move = positionMove(before, afterBoard, sectionId);
       await notify({
         category: "intersection",
-        title: resultHeadline(
-          nameOf(parsed.data.winnerSectionId),
-          nameOf(loserId ?? ""),
-          event?.name ?? "Intersection",
-        ),
-        body: [parsed.data.note, move].filter(Boolean).join(" · "),
+        title: headline,
+        body: [scoreLine ?? note, move].filter(Boolean).join(" · "),
         url: `/intersection/events/${row.event_id}`,
         sourceModule: MODULE,
         sourceRef: parsed.data.matchId,
@@ -520,7 +674,14 @@ export async function clearResult(matchId: string) {
 
   const { error } = await db
     .from("intersection_matches")
-    .update({ winner_section_id: null, note: null, played: false })
+    .update({
+      winner_section_id: null,
+      is_draw: false,
+      a_score: null,
+      b_score: null,
+      note: null,
+      played: false,
+    })
     .eq("id", parsed.data);
   if (error) return { ok: false as const, error: "Could not clear the result" };
 

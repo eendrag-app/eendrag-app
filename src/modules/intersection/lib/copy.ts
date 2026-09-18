@@ -58,6 +58,36 @@ export function resultHeadline(winnerName: string, loserName: string, eventName:
   return `${winnerName} beat ${loserName} — ${eventName}`;
 }
 
+/** "Katstraat drew Stopstraat" — a drawn group game, on events that allow draws. */
+export function drawHeadline(teamAName: string, teamBName: string, eventName: string): string {
+  return `${teamAName} drew ${teamBName} — ${eventName}`;
+}
+
+/**
+ * The line under a played fixture: "Draw", the score ("3–1", in the order the
+ * teams are listed), and any note, whichever of those exist.
+ */
+export function resultLine(match: {
+  played: boolean;
+  draw: boolean;
+  aScore: number | null;
+  bScore: number | null;
+  note: string | null;
+}): string | null {
+  if (!match.played) return match.note || null;
+  const score =
+    match.aScore != null && match.bScore != null ? `${match.aScore}–${match.bScore}` : "";
+  const parts = [match.draw ? "Draw" : "", score, match.note ?? ""].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** "+2", "0", "−3" — score difference as a table shows it. */
+export function formatDiff(diff: number): string {
+  if (diff > 0) return `+${diff}`;
+  if (diff < 0) return `−${Math.abs(diff)}`;
+  return "0";
+}
+
 /**
  * "Katstraat move to 2nd" when an event's result shifted a section on the
  * season leaderboard, or null when nothing moved. Points only count once an

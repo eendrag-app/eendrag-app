@@ -14,7 +14,7 @@ import { TieBreakAdmin, type TiedGroup } from "../components/tie-break-admin";
 import { sideLabel, stageLabel } from "../lib/copy";
 import { canClearResult, canEditGroups, canEditTeams, canRegenerateDraw } from "../lib/guards";
 import { loadEvent, loadSections } from "../lib/load";
-import { needsTieBreak } from "../lib/tournament";
+import { canDraw, needsTieBreak, scoreMissing, standings } from "../lib/tournament";
 
 export const metadata = { title: "Run an event" };
 
@@ -36,6 +36,7 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
   const nameOf = (sectionId: string) =>
     sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
 
+  const options = { scoreDiff: event.scoreDiff };
   const groupsGuard = canEditGroups(event.matches);
   const redrawGuard = canRegenerateDraw(event.matches);
 
@@ -51,6 +52,11 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
       teamALabel: sideLabel(match, 0, nameOf),
       teamBLabel: sideLabel(match, 1, nameOf),
       winnerId: match.winnerId,
+      draw: match.draw,
+      canDraw: canDraw(match, event.allowDraws),
+      aScore: match.aScore,
+      bScore: match.bScore,
+      scoreNeeded: scoreMissing(match),
       note: match.note ?? "",
       scheduledInput: match.scheduledAt ? toLocalInput(match.scheduledAt) : "",
       played: match.played,
@@ -62,14 +68,25 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
 
   const sectionOptions: SectionOption[] = sections;
 
-  // Groups that ended in a three-way tie. Nothing appears unless one actually
+  // Results saved before score difference was on, still waiting for scores.
+  const scoreNeededCount = event.scoreDiff
+    ? event.matches.filter((match) => scoreMissing(match)).length
+    : 0;
+
+  // Groups the results could not split. Nothing appears unless that actually
   // happened — most events never see this card at all.
   const tiedGroups: TiedGroup[] = event.groups
-    .filter((group) => needsTieBreak(group, event.matches))
+    .filter((group) => needsTieBreak(group, event.matches, options))
     .map((group) => ({
       id: group.id,
       name: group.name,
-      teams: group.sectionIds.map((sectionId) => ({ id: sectionId, name: nameOf(sectionId) })),
+      // In table order, with what the table ranked them on.
+      teams: standings(group, event.matches, nameOf, options).map((row) => ({
+        id: row.sectionId,
+        name: nameOf(row.sectionId),
+        points: row.points,
+        diff: row.diff,
+      })),
       firstSectionId: group.firstSectionId ?? null,
       secondSectionId: group.secondSectionId ?? null,
     }));
@@ -138,12 +155,11 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
           <CardHeader>
             <CardTitle>Who goes through</CardTitle>
             <CardDescription>
-              A group of three with no draws either has a clear order or is completely
-              level. This one is level, and the app will not guess.
+              The results could not separate some sections, and the app will not guess.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <TieBreakAdmin eventId={event.id} groups={tiedGroups} />
+            <TieBreakAdmin eventId={event.id} groups={tiedGroups} scoreDiff={event.scoreDiff} />
           </CardContent>
         </Card>
       )}
@@ -153,12 +169,17 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
           <CardHeader>
             <CardTitle>Fixtures and results</CardTitle>
             <CardDescription>
-              Picking a winner saves immediately, fills in whoever that sends through to the
-              next round, and tells both sections.
+              {event.scoreDiff
+                ? "Enter each team's score and the app works out the result. Saving fills in whoever that sends through to the next round, and tells both sections."
+                : "Picking a winner saves immediately, fills in whoever that sends through to the next round, and tells both sections."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <MatchAdmin matches={adminMatches} sections={sectionOptions} />
+            <MatchAdmin
+              matches={adminMatches}
+              sections={sectionOptions}
+              scoreDiff={event.scoreDiff}
+            />
           </CardContent>
         </Card>
       )}
@@ -174,7 +195,10 @@ export default async function AdminEventPage({ params }: PageProps<"/intersectio
               name: event.name,
               startDate: event.startDate ?? "",
               rules: event.rules,
+              allowDraws: event.allowDraws,
+              scoreDiff: event.scoreDiff,
             }}
+            scoreNeededCount={scoreNeededCount}
           />
           <div className="border-t pt-4">
             <DeleteEventButton eventId={event.id} eventName={event.name} />

@@ -934,3 +934,35 @@ app hit the same bug and fixed it there first. The two apps have to agree on
 section names while both are live, because `npm run import-intersection`
 matches sections by name and a mismatch would silently drop a twelfth of the
 competition. Migration 0108.
+
+## 2026-09-18 — Draws and score difference are per-event options
+
+**Decision:** two tick boxes on each event, both off by default:
+`allow_draws` (group games may end level, 1 point each) and `score_diff`
+(every fixture records a score per team; level sections rank on difference,
+then scores for, before head-to-head). Migration 0505. Ported from the old
+intersection app, commits 78ba91b and 02e1a47..220b2c2.
+
+**Why per event.** Some sports draw and keep score (soccer), some do neither
+(chess knockouts). One global switch would be wrong for half of them.
+
+**The app decides the result from the scores, not the admin.** `scoreOutcome`
+in `lib/tournament.ts` is called by both the form and `setResult`. The server
+ignores a winner sent by the browser unless the scores are level and a draw is
+not possible. A form that let you save "3–1, loser wins" would be a bug.
+
+**Score difference can always be switched on**, even with results already
+entered. The old app first refused that, and the admin saw a tick box that
+looked ticked but never saved. Old results are marked "Score needed" and count
+for nothing in the difference until scores are typed in.
+
+**Ties.** `needsTieBreak` is now: all three level (on points, and on
+difference and scores for when those count), or two level whose game was a
+draw. A saved HK choice is cleared by `recalcAndPersist` as soon as the tie
+no longer exists, and `tieBreakFits` stops a choice from overturning an order
+the results did decide. With both options off, behaviour is exactly as before
+(pinned in tournament.test.ts).
+
+**Column names** are `a_score`/`b_score`, not `score_a`/`score_b`: the old
+app deletes legacy `scoreA`/`scoreB` fields from its backups, and the import
+reads `aScore`/`bScore`.

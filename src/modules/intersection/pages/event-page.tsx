@@ -13,7 +13,7 @@ import { getProfile } from "@/core/permissions";
 import { formatLongDate } from "@/core/ui/format";
 import { cn } from "@/lib/utils";
 import { MatchRow, MatchTime } from "../components/match-row";
-import { stageLabel } from "../lib/copy";
+import { formatDiff, resultLine, stageLabel } from "../lib/copy";
 import { loadEvent, loadSections } from "../lib/load";
 import { needsTieBreak, qualifiers, standings, type Stage } from "../lib/tournament";
 
@@ -42,6 +42,7 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
     sections.find((s) => s.id === sectionId)?.name ?? "Unknown";
 
   const stages: Stage[] = ["group", "qf", "sf", "final"];
+  const options = { scoreDiff: event.scoreDiff };
 
   return (
     <div className="space-y-4">
@@ -80,9 +81,9 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             {event.groups.map((group) => {
-              const table = standings(group, event.matches, nameOf);
-              const tied = needsTieBreak(group, event.matches);
-              const through = qualifiers(group, event.matches, nameOf);
+              const table = standings(group, event.matches, nameOf, options);
+              const tied = needsTieBreak(group, event.matches, options);
+              const through = qualifiers(group, event.matches, nameOf, options);
               return (
                 <Card key={group.id}>
                   <CardHeader>
@@ -93,8 +94,8 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                     {tied && (
                       <CardDescription>
                         {through
-                          ? `All level on points — the HK sent ${nameOf(through.first)} and ${nameOf(through.second)} through.`
-                          : "All level on points. The HK decides who goes through."}
+                          ? `The results could not separate them — the HK sent ${nameOf(through.first)} and ${nameOf(through.second)} through.`
+                          : "The results could not separate them. The HK decides who goes through."}
                       </CardDescription>
                     )}
                   </CardHeader>
@@ -107,9 +108,11 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                     <table className="w-full table-fixed text-sm">
                       <colgroup>
                         <col />
-                        <col className="w-9" />
-                        <col className="w-9" />
-                        <col className="w-11" />
+                        <col className="w-8" />
+                        <col className="w-8" />
+                        {event.allowDraws && <col className="w-8" />}
+                        {event.scoreDiff && <col className="w-11" />}
+                        <col className="w-10" />
                       </colgroup>
                       <thead>
                         <tr className="text-muted-foreground text-xs">
@@ -120,6 +123,16 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                           <th className="pb-1 text-right font-normal">
                             <abbr title="Won" className="no-underline">W</abbr>
                           </th>
+                          {event.allowDraws && (
+                            <th className="pb-1 text-right font-normal">
+                              <abbr title="Drawn" className="no-underline">D</abbr>
+                            </th>
+                          )}
+                          {event.scoreDiff && (
+                            <th className="pb-1 text-right font-normal">
+                              <abbr title="Score difference" className="no-underline">+/−</abbr>
+                            </th>
+                          )}
                           <th className="pb-1 text-right font-normal">Pts</th>
                         </tr>
                       </thead>
@@ -132,6 +145,12 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                             <td className="truncate py-1 pr-2">{nameOf(row.sectionId)}</td>
                             <td className="text-right tabular-nums">{row.played}</td>
                             <td className="text-right tabular-nums">{row.won}</td>
+                            {event.allowDraws && (
+                              <td className="text-right tabular-nums">{row.drawn}</td>
+                            )}
+                            {event.scoreDiff && (
+                              <td className="text-right tabular-nums">{formatDiff(row.diff)}</td>
+                            )}
                             <td className="text-right font-medium tabular-nums">{row.points}</td>
                           </tr>
                         ))}
@@ -165,7 +184,7 @@ export default async function EventPage({ params }: PageProps<"/intersection/eve
                         </div>
                         <MatchRow
                           match={match}
-                          note={match.note}
+                          note={resultLine(match)}
                           nameOf={nameOf}
                           mySectionId={mySectionId}
                         />

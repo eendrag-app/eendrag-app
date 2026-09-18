@@ -86,17 +86,31 @@ score.
 
 Admin → **Intersection**:
 
-1. **Create the event** (name, start date, rules text).
+1. **Create the event** (name, start date, rules text, and two tick boxes,
+   both off unless you tick them):
+   - **Group fixtures can end in a draw (1 point each)** — a win is still 3.
+     Knockout games can never be a draw. You cannot switch this off while a
+     game in the event is a draw; clear those results first.
+   - **Enable score difference** — every fixture (knockouts too) takes a score
+     for each team instead of a winner pick and note, and the app works out
+     the result. Level scores are a draw where one is allowed; otherwise it
+     asks who went through (penalties and so on). Level sections in a group
+     are ranked on points, then score difference, then scores for, then
+     head-to-head. You can switch it on even after results are in: those
+     results show **Score needed** and their old note, and count for nothing
+     in the difference until you type the scores in.
 2. **Generate draw** — the app makes 4 random groups of 3 and the full
    fixture list. You can swap teams between groups before games start.
 3. Set times per fixture if you want them on the calendar (a calendar for the
    day, a clock for the time).
-4. As games finish, **pick the winner** on the fixture (add a score note if
-   you like — free text, any format).
-5. If a group ends with all three sections on one win each, the app stops and
-   asks **who goes through**. Nothing separates them on the field and there
-   are no score differences, so the HK decides, and those two knockout places
-   stay empty until you do.
+4. As games finish, **pick the winner** (or **Draw**) on the fixture and add a
+   score note if you like, free text, any format. On a score difference event
+   type the two scores and press **Save result** instead.
+5. If the results cannot separate sections in a group (all three level, or
+   two level who drew each other), the app stops and asks **who goes
+   through**. The HK decides, and those two knockout places stay empty until
+   you do. If a later result or score settles it, your choice is dropped and
+   the table decides again.
 6. Standings, knockout pairings, and the leaderboard update automatically.
    Group winners advance per the fixed bracket; the final decides the
    champion. Points: 15 champion, 12 runner-up, 9 semis, 6 quarters, 3 group

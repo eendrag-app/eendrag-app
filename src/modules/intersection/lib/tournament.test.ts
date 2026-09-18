@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   generateDraw,
   leaderboard,
+  canDraw,
   needsTieBreak,
   placements,
   qualifiers,
   recalc,
+  scoreOutcome,
   sourceLabel,
   standings,
+  tieBreakFits,
   type Group,
   type Match,
 } from "./tournament";
@@ -49,10 +52,29 @@ function match(partial: Partial<Match> & Pick<Match, "stage" | "sortOrder">): Ma
     teamAId: null,
     teamBId: null,
     winnerId: null,
+    draw: false,
+    aScore: null,
+    bScore: null,
     played: false,
     manual: false,
     ...partial,
   };
+}
+
+/** A played group game in g1 with scores; the winner follows from them, level = a draw. */
+function scored(a: string, b: string, aScore: number, bScore: number, sortOrder = 1): Match {
+  return match({
+    stage: "group",
+    sortOrder,
+    groupId: "g1",
+    teamAId: a,
+    teamBId: b,
+    aScore,
+    bScore,
+    winnerId: aScore > bScore ? a : bScore > aScore ? b : null,
+    draw: aScore === bScore,
+    played: true,
+  });
 }
 
 describe("generateDraw", () => {
@@ -266,6 +288,183 @@ describe("needsTieBreak", () => {
       match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z" }),
     ];
     expect(needsTieBreak(group, ms)).toBe(false);
+  });
+});
+
+// Draws and score difference: the two per-event options from the old app's
+// commits 78ba91b (draws) and 02e1a47..220b2c2 (score difference).
+describe("draws", () => {
+  const group: Group = { id: "g1", name: "A", sectionIds: ["x", "y", "z"] };
+
+  it("gives 1 point each for a draw and counts it in D", () => {
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", draw: true, played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", winnerId: "y", played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", winnerId: "x", played: true }),
+    ];
+    const st = standings(group, ms, name);
+    expect(st.map((r) => [r.sectionId, r.points, r.won, r.drawn, r.lost])).toEqual([
+      ["x", 4, 1, 1, 0],
+      ["y", 4, 1, 1, 0],
+      ["z", 0, 0, 0, 2],
+    ]);
+  });
+
+  it("asks the HK when two sections drew each other and finished level", () => {
+    // x and y drew, both beat z: level on 4, and head-to-head was the draw.
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", draw: true, played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", winnerId: "y", played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", winnerId: "x", played: true }),
+    ];
+    expect(needsTieBreak(group, ms)).toBe(true);
+    expect(qualifiers(group, ms, name)).toBeNull();
+  });
+
+  it("does not ask when a draw still leaves a clear order", () => {
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", winnerId: "x", played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", winnerId: "y", played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", draw: true, played: true }),
+    ];
+    // x 4, y 3, z 1 — no tie at all.
+    expect(needsTieBreak(group, ms)).toBe(false);
+    expect(qualifiers(group, ms, name)).toEqual({ first: "x", second: "y" });
+  });
+
+  it("asks when all three draw", () => {
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", draw: true, played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", draw: true, played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", draw: true, played: true }),
+    ];
+    expect(needsTieBreak(group, ms)).toBe(true);
+  });
+});
+
+describe("score difference", () => {
+  const group: Group = { id: "g1", name: "A", sectionIds: ["x", "y", "z"] };
+  const on = { scoreDiff: true };
+
+  it("splits a three-way tie on difference, and fills the places itself", () => {
+    // A cycle, one win each — but x won big and z lost big.
+    const ms = [
+      scored("x", "y", 5, 0, 1), // x +5
+      scored("y", "z", 2, 1, 2), // y +1
+      scored("x", "z", 1, 2, 3), // z +1, x -1
+    ];
+    // x +4, y -4, z 0
+    const st = standings(group, ms, name, on);
+    expect(st.map((r) => [r.sectionId, r.points, r.diff])).toEqual([
+      ["x", 3, 4],
+      ["z", 3, 0],
+      ["y", 3, -4],
+    ]);
+    expect(needsTieBreak(group, ms, on)).toBe(false);
+    expect(qualifiers(group, ms, name, on)).toEqual({ first: "x", second: "z" });
+  });
+
+  it("still asks the HK when a three-way tie has equal differences and scores", () => {
+    const ms = [scored("x", "y", 2, 1, 1), scored("y", "z", 2, 1, 2), scored("x", "z", 1, 2, 3)];
+    // Everyone +0 with 3 scored.
+    expect(needsTieBreak(group, ms, on)).toBe(true);
+    expect(qualifiers(group, ms, name, on)).toBeNull();
+  });
+
+  it("uses scores for when the difference is level too", () => {
+    const ms = [scored("x", "y", 3, 2, 1), scored("y", "z", 2, 1, 2), scored("x", "z", 1, 2, 3)];
+    // All +0; x scored 4, y 4, z 3. x and y level on everything but
+    // head-to-head, which x won — so the table is decided.
+    expect(needsTieBreak(group, ms, on)).toBe(false);
+    expect(standings(group, ms, name, on).map((r) => r.sectionId)).toEqual(["x", "y", "z"]);
+  });
+
+  it("splits two sections who drew each other on difference", () => {
+    // x and y drew 1-1, both beat z — x by more.
+    const ms = [scored("x", "y", 1, 1, 1), scored("y", "z", 1, 0, 2), scored("x", "z", 4, 0, 3)];
+    expect(needsTieBreak(group, ms, on)).toBe(false);
+    expect(qualifiers(group, ms, name, on)).toEqual({ first: "x", second: "y" });
+  });
+
+  it("asks when two who drew each other are also level on difference and scores", () => {
+    const ms = [scored("x", "y", 1, 1, 1), scored("y", "z", 2, 0, 2), scored("x", "z", 2, 0, 3)];
+    expect(needsTieBreak(group, ms, on)).toBe(true);
+  });
+
+  it("counts a result with no scores for nothing in the difference", () => {
+    const ms = [
+      scored("x", "y", 3, 0, 1),
+      // Saved before the option was on: a winner, no scores.
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", winnerId: "y", played: true }),
+    ];
+    const st = standings(group, ms, name, on);
+    const y = st.find((r) => r.sectionId === "y")!;
+    expect(y.points).toBe(3);
+    expect(y.diff).toBe(-3);
+  });
+
+  it("is ignored with the option off, exactly as before", () => {
+    // Same results as the difference-split cycle above: off, it is a tie.
+    const ms = [scored("x", "y", 5, 0, 1), scored("y", "z", 2, 1, 2), scored("x", "z", 1, 2, 3)];
+    expect(needsTieBreak(group, ms)).toBe(true);
+    expect(needsTieBreak(group, ms, { scoreDiff: false })).toBe(true);
+    expect(qualifiers(group, ms, name)).toBeNull();
+  });
+
+  it("fills the quarter-finals from the difference with no HK decision", () => {
+    const { groups, matches } = playedOutEvent();
+    tieGroupA(groups, matches);
+    // Put scores on group A's cycle so a3 comes out top and a1 second.
+    const groupA = matches.filter((m) => m.groupId === "gA");
+    for (const m of groupA) {
+      const winnerIsA = m.winnerId === m.teamAId;
+      const margin = m.winnerId === "a3" ? 5 : m.winnerId === "a1" ? 3 : 1;
+      m.aScore = winnerIsA ? margin : 0;
+      m.bScore = winnerIsA ? 0 : margin;
+    }
+    recalc(groups, matches, name, on);
+    const qf1 = matches.find((m) => m.stage === "qf" && m.slot === 1)!;
+    const qf3 = matches.find((m) => m.stage === "qf" && m.slot === 3)!;
+    expect(qf1.teamAId).toBe("a3");
+    expect(qf3.teamBId).toBe("a1");
+  });
+});
+
+describe("scoreOutcome", () => {
+  it("gives it to the higher score", () => {
+    expect(scoreOutcome(3, 1, true)).toEqual({ kind: "win", side: 0 });
+    expect(scoreOutcome(0, 2, false)).toEqual({ kind: "win", side: 1 });
+  });
+  it("is a draw on level scores only where a draw is possible", () => {
+    expect(scoreOutcome(2, 2, true)).toEqual({ kind: "draw" });
+    expect(scoreOutcome(2, 2, false)).toEqual({ kind: "level" });
+  });
+  it("never lets a knockout draw", () => {
+    expect(canDraw({ stage: "qf" }, true)).toBe(false);
+    expect(canDraw({ stage: "group" }, true)).toBe(true);
+    expect(canDraw({ stage: "group" }, false)).toBe(false);
+  });
+});
+
+describe("tieBreakFits", () => {
+  const group: Group = { id: "g1", name: "A", sectionIds: ["x", "y", "z"] };
+
+  it("allows any order when all three are level", () => {
+    const ms = [scored("x", "y", 1, 0, 1), scored("y", "z", 1, 0, 2), scored("x", "z", 0, 1, 3)];
+    expect(tieBreakFits(group, ms, "z", "y")).toBe(true);
+  });
+
+  it("keeps the outright group winner first when only 2nd is level", () => {
+    // x beat both; y and z drew.
+    const ms = [
+      match({ stage: "group", sortOrder: 1, groupId: "g1", teamAId: "x", teamBId: "y", winnerId: "x", played: true }),
+      match({ stage: "group", sortOrder: 2, groupId: "g1", teamAId: "y", teamBId: "z", draw: true, played: true }),
+      match({ stage: "group", sortOrder: 3, groupId: "g1", teamAId: "x", teamBId: "z", winnerId: "x", played: true }),
+    ];
+    expect(needsTieBreak(group, ms)).toBe(true);
+    expect(tieBreakFits(group, ms, "x", "z")).toBe(true);
+    expect(tieBreakFits(group, ms, "x", "y")).toBe(true);
+    expect(tieBreakFits(group, ms, "y", "x")).toBe(false);
   });
 });
 

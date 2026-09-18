@@ -95,7 +95,9 @@ export default async function IntersectionAdminPage() {
           <CardTitle>New event</CardTitle>
         </CardHeader>
         <CardContent>
-          <EventForm values={{ name: "", startDate: "", rules: "" }} />
+          <EventForm
+            values={{ name: "", startDate: "", rules: "", allowDraws: false, scoreDiff: false }}
+          />
         </CardContent>
       </Card>
 
